@@ -311,14 +311,14 @@ function renderDashboard(){
     ['Motability',s.motab],
     ['Used',s.used],
     ['Commission adjustments',money(s.adjustments)]
-  ].map(x=>`<div class="statline"><span>${esc(x[0])}</span><strong>${esc(x[1])}</strong></div>`).join('')+(target===null?'<div class="note" style="margin-top:8px">Monthly vehicle target is not set for this month.</div>':`<div class="statline"><span>Monthly unit target</span><strong>${target}</strong></div>`);
+  ].map(x=>`<div class="statline"><span>${esc(x[0])}</span><strong>${esc(x[1])}</strong></div>`).join('')+(target===null?'':`<div class="statline"><span>Monthly unit target</span><strong>${target}</strong></div>`);
   const nextKey=payMonthForCurrent(), prev=monthStats(currentMonthKey());
   const flow=[
     `<div class="statline"><span>${monthLabel(key)} earned</span><strong>${money(prev.earned)}</strong></div>`,
     `<div class="statline"><span>${monthLabel(nextKey)} expected from this month's earned commission</span><strong>${money(monthStats(nextKey).expected)}</strong></div>`,
     `<div class="statline"><span>${monthLabel(nextKey)} actually recorded paid</span><strong>${money(monthStats(nextKey).paid)}</strong></div>`
   ];
-  document.getElementById('dashFlow').innerHTML=flow.join('')+'<div class="note" style="margin-top:8px">Commission is shown on the following payslip month because your contract states commission is paid one month in arrears.</div>';
+  document.getElementById('dashFlow').innerHTML=flow.join('');
 }
 
 function taskDueClass(t){

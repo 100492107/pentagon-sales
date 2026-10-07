@@ -278,7 +278,7 @@ function renderSummary(){
   document.getElementById('commNeeded').textContent=money(target);
   document.getElementById('netNow').textContent=money(net);
   document.getElementById('commGap').textContent=money(Math.max(0,target-s.earned));
-  document.getElementById('netProgress').style.width=Math.min(100,net/(Number(settings.netTarget)||3000)*100)+'%';
+  document.getElementById('netProgress').style.width=Math.min(100,s.earned/(target||1)*100)+'%';
   document.getElementById('dashEarned').textContent=money(s.earned);
   document.getElementById('dashEarnedSub').textContent=monthLabel(key);
   document.getElementById('dashCommProgress').style.width=Math.min(100,s.earned/(target||1)*100)+'%';

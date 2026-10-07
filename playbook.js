@@ -2,28 +2,26 @@ function renderFiConversion() {
   const el = document.getElementById('fiConversion');
   if (!el) return;
   const nowKey = currentMonthKey();
-  const monthDeals = deals.filter(d => monthKey(d.date) === nowKey);
+  const monthDeals = deals.filter(d => monthKey(d.deliveryDate) === nowKey);
   if (!monthDeals.length) {
-    el.innerHTML = '<span style="color:var(--muted)">Log deals this month to track F&amp;I conversion vs 35%.</span>';
+    el.innerHTML = '<span style="color:var(--muted)">Log delivered deals this month to see F&amp;I conversion.</span>';
     return;
   }
   const products = [
-    { key: 'finance', label: 'Finance', types: ['new-retail','new-motab','used'] },
-    { key: 'paint', label: 'Paint', types: ['new-retail','new-motab','used'] },
-    { key: 'refresh', label: 'Refresh', types: ['new-retail','new-motab','used'] },
-    { key: 'warranty', label: 'Warranty', types: ['new-retail','new-motab','used'] },
-    { key: 'carepack', label: 'Motab Care Pack', types: ['new-retail','new-motab'] },
-    { key: 'assurance', label: 'Assurance Upgrade', types: ['used'] }
+    { key:'finance', label:'Finance', types:['new-retail','new-motab','used'] },
+    { key:'paint', label:'Paint', types:['new-retail','new-motab','used'] },
+    { key:'refresh', label:'Refresh', types:['new-retail','new-motab','used'] },
+    { key:'warranty', label:'Warranty', types:['new-retail','new-motab','used'] },
+    { key:'carepack', label:'Motability Care Pack', types:['new-retail','new-motab'] },
+    { key:'assurance', label:'Assurance Upgrade', types:['used'] }
   ];
-  const target = 35;
   let html = '';
   products.forEach(p => {
     const pool = monthDeals.filter(d => p.types.includes(d.type));
     if (!pool.length) return;
     const sold = pool.filter(d => (d.fi || []).includes(p.key)).length;
     const pct = Math.round((sold / pool.length) * 100);
-    const col = pct >= target ? 'var(--green)' : (pct >= 20 ? 'var(--yellow)' : 'var(--red)');
-    html += '<div class="fi-row"><div><strong style="color:var(--text)">' + p.label + '</strong> <span style="color:var(--muted);font-size:0.75rem">' + sold + '/' + pool.length + '</span></div><span style="color:' + col + ';font-weight:700">' + pct + '%</span></div><div class="fi-bar"><div class="fi-fill" style="width:' + Math.min(100,pct) + '%;background:' + col + '"></div></div>';
+    html += '<div class="fi-row"><div><strong style="color:var(--text)">' + p.label + '</strong> <span style="color:var(--muted);font-size:0.75rem">' + sold + '/' + pool.length + '</span></div><span style="font-weight:700">' + pct + '%</span></div><div class="fi-bar"><div class="fi-fill" style="width:' + Math.min(100,pct) + '%"></div></div>';
   });
   el.innerHTML = html || '<span style="color:var(--muted)">No eligible deals yet.</span>';
 }
@@ -31,61 +29,56 @@ function renderFiConversion() {
 function renderFireNote() {
   const el = document.getElementById('fireNote');
   if (!el) return;
-  const nowKey = currentMonthKey();
-  const stats = getMonthStats(nowKey);
-  const target = getMonthTarget(nowKey);
-  const surplus = stats.units - target;
-  const basicM = (settings.basic || 20000) / 12;
-  const th = estimateTakeHome((basicM + stats.comm) * 12) / 12;
-  const commNeeded = settings._commNeeded || 2093;
-  if (surplus > 0 && th >= 3000) {
-    el.innerHTML = '<span class="crush">On fire.</span> Target beaten by ' + surplus + ' unit' + (surplus > 1 ? 's' : '') + ' and on track for £3k+ take-home.';
-  } else if (surplus > 0) {
-    el.innerHTML = '<span class="fire">Crushing it.</span> ' + surplus + ' over unit target. Keep the F&amp;I going.';
-  } else if (th >= 3000) {
-    el.innerHTML = '<span class="crush">Money on track.</span> Est. take-home already at £3k+. Nice.';
-  } else if (stats.comm >= commNeeded * 0.75 && stats.units > 0) {
-    el.innerHTML = '<span class="fire">Heating up.</span> Three-quarters of the way to the commission target.';
-  } else if (stats.units === 0) {
-    el.innerHTML = 'Fresh month. First deal of the day sets the tone.';
-  } else {
-    el.innerHTML = '';
+  const key = currentMonthKey();
+  const stats = monthStats(key);
+  const target = monthTarget(key);
+  if (target === null) {
+    el.innerHTML = 'Monthly unit target has not been entered.';
+    return;
   }
+  const delta = stats.units - target;
+  el.innerHTML = delta >= 0
+    ? '<strong>Target met.</strong> ' + (delta ? delta + ' above the recorded target.' : '')
+    : '<strong>' + Math.abs(delta) + ' more unit' + (Math.abs(delta) === 1 ? '' : 's') + '</strong> to reach the recorded monthly target.';
 }
 
 function renderWeeklyReminder() {
   const el = document.getElementById('weeklyReminder');
   if (!el) return;
-  const nowKey = currentMonthKey();
-  const stats = getMonthStats(nowKey);
-  const target = getMonthTarget(nowKey);
-  const remaining = Math.max(0, target - stats.units);
+  const key = currentMonthKey();
+  const stats = monthStats(key);
+  const target = monthTarget(key);
+  if (target === null) {
+    el.innerHTML = 'Monthly unit target has not been entered.';
+    return;
+  }
   const today = new Date();
   const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
   const daysLeft = daysInMonth - today.getDate() + 1;
   const weeksLeft = Math.max(1, Math.ceil(daysLeft / 7));
+  const remaining = Math.max(0, target - stats.units);
   const perWeek = remaining > 0 ? Math.ceil(remaining / weeksLeft) : 0;
-  if (remaining <= 0) {
-    el.innerHTML = 'Unit target met for this month. Focus on F&amp;I and quality handovers.';
-  } else {
-    el.innerHTML = 'Need <strong style="color:var(--text)">' + remaining + ' more units</strong> this month — roughly <strong style="color:var(--text)">' + perWeek + ' this week</strong> (' + daysLeft + ' days left). You have got this.';
-  }
+  el.innerHTML = remaining === 0
+    ? 'Monthly target met. Focus on customer work and clean handovers.'
+    : 'Need <strong>' + remaining + ' more unit' + (remaining === 1 ? '' : 's') + '</strong> this month — roughly <strong>' + perWeek + ' this week</strong>.';
 }
 
 window._exportPDFImpl = function() {
-  const nowKey = currentMonthKey();
-  const stats = getMonthStats(nowKey);
-  const target = getMonthTarget(nowKey);
-  const basicM = (settings.basic || 20000) / 12;
-  const th = estimateTakeHome((basicM + stats.comm) * 12) / 12;
-  const monthDeals = deals.filter(d => monthKey(d.date) === nowKey).sort((a,b) => a.date.localeCompare(b.date));
-  const rows = monthDeals.map(d => {
-    const c = calcDealComm(d);
-    const type = d.type === 'used' ? 'Used' : d.type === 'new-motab' ? 'Motab' : 'New';
-    return '<tr><td>' + d.date + '</td><td>' + (d.customer||'') + '</td><td>' + type + '</td><td>' + d.status + '</td><td>£' + c.total + '</td></tr>';
-  }).join('');
+  const key = currentMonthKey();
+  const stats = monthStats(key);
+  const target = monthTarget(key);
+  const rows = deals
+    .filter(d => monthKey(d.deliveryDate) === key || monthKey(d.orderDate) === key)
+    .sort((a,b) => (a.orderDate || a.deliveryDate || a.leadDate || '').localeCompare(b.orderDate || b.deliveryDate || b.leadDate || ''))
+    .map(d => {
+      const commission = eventDefs(d).reduce((sum,e) => sum + eligibleEvent(d,e), 0);
+      const type = d.type === 'used' ? 'Used' : d.type === 'new-motab' ? 'New Motability' : 'New Retail';
+      const date = d.orderDate || d.deliveryDate || d.leadDate || '';
+      return '<tr><td>' + date + '</td><td>' + (d.customer||'') + '</td><td>' + type + '</td><td>' + (STAGE_LABELS[d.stage] || d.stage || '') + '</td><td>£' + Math.round(commission).toLocaleString('en-GB') + '</td></tr>';
+    }).join('');
   const w = window.open('', '_blank');
-  w.document.write('<!DOCTYPE html><html><head><title>Pentagon ' + monthLabel(nowKey) + '</title><style>body{font-family:system-ui,sans-serif;padding:24px;color:#111;max-width:800px;margin:0 auto}h1{font-size:18px;margin:0 0 4px}.sub{color:#666;font-size:12px;margin-bottom:20px}.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px}.box{border:1px solid #ddd;border-radius:8px;padding:12px}.box .n{font-size:22px;font-weight:700}.box .l{font-size:11px;color:#666}table{width:100%;border-collapse:collapse;font-size:12px}th,td{text-align:left;padding:6px 4px;border-bottom:1px solid #eee}th{font-size:10px;text-transform:uppercase;color:#666}@media print{button{display:none}}</style></head><body><button onclick="window.print()" style="margin-bottom:16px;padding:8px 14px;cursor:pointer">Print / Save as PDF</button><h1>Pentagon Motor Group — Monthly summary</h1><div class="sub">' + monthLabel(nowKey) + ' · Sales Consultant</div><div class="grid"><div class="box"><div class="n">' + stats.units + ' / ' + target + '</div><div class="l">Units</div></div><div class="box"><div class="n">£' + stats.comm.toLocaleString() + '</div><div class="l">Commission</div></div><div class="box"><div class="n">£' + Math.round(th).toLocaleString() + '</div><div class="l">Est. take-home</div></div></div><table><thead><tr><th>Date</th><th>Customer</th><th>Type</th><th>Status</th><th>Comm</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5">No deals</td></tr>') + '</tbody></table></body></html>');
+  if (!w) return;
+  w.document.write('<!DOCTYPE html><html><head><title>Pentagon ' + monthLabel(key) + '</title><style>body{font-family:system-ui,sans-serif;padding:24px;color:#111;max-width:800px;margin:0 auto}table{width:100%;border-collapse:collapse;font-size:12px}th,td{text-align:left;padding:6px 4px;border-bottom:1px solid #eee}th{font-size:10px;text-transform:uppercase;color:#666}</style></head><body><button onclick="window.print()">Print / Save as PDF</button><h1>Pentagon Motor Group — Monthly summary</h1><p>' + monthLabel(key) + '</p><p><strong>Delivered:</strong> ' + stats.units + (target === null ? '' : ' / ' + target) + ' &nbsp; <strong>Adjusted commission:</strong> £' + Math.round(stats.earned).toLocaleString('en-GB') + '</p><table><thead><tr><th>Date</th><th>Customer</th><th>Type</th><th>Stage</th><th>Commission</th></tr></thead><tbody>' + (rows || '<tr><td colspan="5">No deals</td></tr>') + '</tbody></table></body></html>');
   w.document.close();
 };
 

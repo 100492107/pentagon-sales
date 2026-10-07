@@ -93,7 +93,7 @@ const PLAY = {
   },
   fi: {
     title: 'F&I Buyology',
-    body: '<div class="play-line">Place funding talk after appraisal — when you already know their situation.</div><div class="play-line"><strong>Openers:</strong> "Are there any payments outstanding?" · "Have you got a current settlement figure?"</div><div class="play-line"><strong>Mileage bridge:</strong> "What\'s your annual mileage?" → connect to funding structure.</div><div class="play-line"><strong>Products:</strong> "If I could show you a way to [benefit], would you be interested after we have [later stage]?"</div><div class="play-line" style="margin-top:0.5rem;color:var(--yellow)">Your tracker target: <strong>35%+ conversion</strong> on each product.</div>'
+    body: '<div class="play-line">Place funding talk after appraisal — when you already know their situation.</div><div class="play-line"><strong>Openers:</strong> "Are there any payments outstanding?" · "Have you got a current settlement figure?"</div><div class="play-line"><strong>Mileage bridge:</strong> "What\'s your annual mileage?" → connect to funding structure.</div><div class="play-line"><strong>Products:</strong> "If I could show you a way to [benefit], would you be interested after we have [later stage]?"</div>'
   },
   invite: {
     title: 'Invitation to buy',

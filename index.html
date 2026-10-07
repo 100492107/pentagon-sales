@@ -144,11 +144,11 @@ label{font-size:10px;color:var(--muted);font-weight:700;display:block;margin-bot
     <div class="topline"><div><div class="eyebrow">Production</div><h2>Performance</h2></div></div>
     <div class="grid g4">
       <div class="card"><h2>Annual deliveries</h2><div class="stat blue" id="perfAnnualUnits">0 / 160</div><div class="progress"><div class="fill blue" id="perfAnnualBar" style="width:0%"></div></div></div>
-      <div class="card"><h2>Average monthly pace</h2><div class="stat" id="perfPace">—</div><div class="small">160 annual target ÷ 12</div></div>
+      <div class="card"><h2>Reference annual pace</h2><div class="stat" id="perfPace">—</div><div class="small">160-unit annual target ÷ 12. This is a reference pace, not a fixed monthly target.</div></div>
       <div class="card"><h2>Potential annual bonus</h2><div class="stat yellow" id="perfBonus">£0</div><div class="small">Eligibility conditions still apply</div></div>
       <div class="card"><h2>Average commission / delivery</h2><div class="stat green" id="perfAvgComm">—</div><div class="small">Based on recorded eligible commission</div></div>
     </div>
-    <div class="card" style="margin-top:12px"><h2>July 2026 → June 2027</h2><div class="tablewrap"><table class="table"><thead><tr><th>Month</th><th>Unit target</th><th>Delivered</th><th>New</th><th>Used</th><th>Motab</th><th>Commission earned</th><th>Target status</th></tr></thead><tbody id="performanceBody"></tbody></table></div></div>
+    <div class="card" style="margin-top:12px"><h2>January → December</h2><div class="note" style="margin-bottom:9px">Annual tracker period. The 160-unit target is combined New + Used; monthly targets are only shown when you enter the real dealership target.</div><div class="tablewrap"><table class="table"><thead><tr><th>Month</th><th>Unit target</th><th>Delivered</th><th>New</th><th>Used</th><th>Motab</th><th>Commission earned</th><th>Target status</th></tr></thead><tbody id="performanceBody"></tbody></table></div></div>
     <div class="card" style="margin-top:12px"><h2>Quality / commission risk</h2><div id="perfRisk"></div></div>
   </section>
 
@@ -168,16 +168,16 @@ label{font-size:10px;color:var(--muted);font-weight:700;display:block;margin-bot
           <div><label>Other monthly deductions</label><input class="input" type="number" id="setOtherDed"></div>
         </div>
         <button class="btn primary" style="margin-top:10px" onclick="saveSettings()">Save</button>
-        <div class="note" style="margin-top:9px">The £3,000 goal is your chosen target. Tax estimates use the current 2026/27 England rates and are planning estimates.</div>
+        <div class="note" style="margin-top:9px">The £3,000 goal is your chosen target. Tax estimates use the current 2026/27 England rates and are planning estimates, not a payslip calculation.</div>
       </div>
-      <div class="card"><h2>Monthly unit target</h2>
+      <div class="card"><h2>Targets &amp; scheme rules</h2>
         <div class="formgrid">
           <div><label>Month</label><input class="input" type="month" id="setTargetMonth"></div>
           <div><label>Combined unit target</label><input class="input" type="number" min="1" id="setMonthTarget" placeholder="Only enter if known"></div>
           <div><label>New-vehicle delivery target</label><input class="input" type="number" min="1" id="setNewVehicleTarget" placeholder="Only enter if known"></div>
         </div>
         <div class="toolbar" style="margin-top:10px"><button class="btn primary" onclick="saveMonthTarget()">Save targets</button><button class="btn" onclick="clearMonthTarget()">Clear targets</button></div>
-        <div class="note" style="margin-top:9px">The scheme confirms a 160-unit combined annual target. It does not state a fixed monthly target. The separate new-vehicle target is used only for the scheme's 20% monthly commission reduction.</div>
+        <div class="note" style="margin-top:9px">160 combined units is the annual target. The scheme does not state a fixed monthly target. The separate new-vehicle delivery target is used only for the 20% monthly commission reduction.</div><div class="commission-rates" style="margin-top:12px"><h3>Commission rates</h3><div class="tablewrap"><table class="table"><thead><tr><th>Type</th><th>Order / invoice</th><th>Delivery</th><th>F&amp;I</th></tr></thead><tbody><tr><td>New Retail</td><td>£40</td><td>£40</td><td>Finance £10 · Paint £35 · Refresh £35 · Warranty £35 · Motability Care Pack £25</td></tr><tr><td>New Motability</td><td>£30</td><td>£30</td><td>Finance £10 · Paint £35 · Refresh £35 · Warranty £35 · Motability Care Pack £25</td></tr><tr><td>Used</td><td>—</td><td>£60</td><td>Finance £60 · Paint £30 · Refresh £30 · Warranty £30 · Assurance £10</td></tr></tbody></table></div><div class="note" style="margin-top:7px">The current 2026/27 document also states: order commission applies to orders from 1 July onwards; commission is paid one month in arrears; finance commission requires payout confirmation. GAP is excluded from this tracker.</div></div>
       </div>
     </div>
     <div class="card" style="margin-top:12px"><h2>Data</h2><div class="toolbar"><button class="btn" onclick="exportJSON()">Export JSON</button><button class="btn" onclick="exportCSV()">Export CSV</button><button class="btn" onclick="document.getElementById('importFile').click()">Import JSON</button><button class="btn danger" onclick="if(confirm('Delete all local deals and tasks?')) clearAll()">Delete all</button></div></div>
@@ -204,15 +204,15 @@ label{font-size:10px;color:var(--muted);font-weight:700;display:block;margin-bot
       <div><label>Sale type</label><select id="fType"><option value="new-retail">New Retail</option><option value="new-motab">New Motability</option><option value="used">Used</option></select></div>
       <div><label>Stage</label><select id="fStage"><option value="lead">Lead</option><option value="quoted">Quoted</option><option value="test-drive">Test drive</option><option value="ordered">Ordered</option><option value="awaiting-delivery">Awaiting delivery</option><option value="delivered">Delivered</option><option value="lost">Lost / cancelled</option></select></div>
       <div><label>Lead date</label><input class="input" type="date" id="fLeadDate"></div>
-      <div><label>Order date</label><input class="input" type="date" id="fOrderDate"></div>
+      <div><label>Order / invoice date</label><input class="input" type="date" id="fOrderDate"></div>
       <div><label>Expected delivery</label><input class="input" type="date" id="fExpectedDelivery"></div>
       <div><label>Delivery date</label><input class="input" type="date" id="fDeliveryDate"></div>
       <div><label>Finance payout confirmed</label><input class="input" type="date" id="fFinancePayout"></div>
     </div>
     <div class="divider"></div>
-    <div><label>F&amp;I sold / recorded</label><div class="checks" id="fiChecks"></div></div>
+    <div><label>F&amp;I commissionable products</label><div class="checks" id="fiChecks"></div><div class="note" style="margin-top:6px">Only select products that meet the scheme's pricing / discount rules. Finance becomes eligible only when payout confirmation is recorded.</div></div>
     <div class="formgrid three" style="margin-top:10px">
-      <div><label>CSI</label><input class="input" type="number" min="0" max="10" step="0.1" id="fCSI" placeholder="Only enter if known"></div>
+      <div><label>CSI (optional)</label><input class="input" type="number" min="0" max="10" step="0.1" id="fCSI" placeholder="Leave blank until Pentagon provides it"></div>
       <div><label>PX / trade-in</label><input class="input" id="fPx" placeholder="Optional"></div>
       <div><label>Next action summary</label><input class="input" id="fNextAction" placeholder="Optional — tasks are better for due work"></div>
     </div>

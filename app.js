@@ -41,10 +41,10 @@ function uid(prefix='id'){ return prefix + '_' + Date.now().toString(36) + Math.
 function esc(v){ return String(v ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
 function money(n){ return '£' + Math.round(Number(n)||0).toLocaleString('en-GB'); }
 function money2(n){ return '£' + Number(n||0).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}); }
-function todayKey(){ return new Date().toISOString().slice(0,10); }
+function todayKey(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function parseDate(s){ return s ? new Date(s + 'T12:00:00') : null; }
 function monthKey(dateStr){ const d=parseDate(dateStr); if(!d || isNaN(d)) return ''; return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
-function monthAfter(key){ if(!/^\d{4}-\d{2}$/.test(key)) return ''; const [y,m]=key.split('-').map(Number); return new Date(y,m,1).toISOString().slice(0,7); }
+function monthAfter(key){ if(!/^\d{4}-\d{2}$/.test(key)) return ''; const [y,m]=key.split('-').map(Number); const next=m===12?{y:y+1,m:1}:{y,m:m+1}; return next.y+'-'+String(next.m).padStart(2,'0'); }
 function monthLabel(key){ if(!/^\d{4}-\d{2}$/.test(key)) return '—'; const [y,m]=key.split('-').map(Number); return new Date(y,m-1,1).toLocaleString('en-GB',{month:'long',year:'numeric'}); }
 function shortMonth(key){ if(!/^\d{4}-\d{2}$/.test(key)) return '—'; const [y,m]=key.split('-').map(Number); return new Date(y,m-1,1).toLocaleString('en-GB',{month:'short'}); }
 function dateLabel(s){ return s ? parseDate(s).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '—'; }
@@ -226,7 +226,8 @@ function monthStatsRaw(key){
 function previousKey(key){
   if(!/^\d{4}-\d{2}$/.test(key))return '';
   const [y,m]=key.split('-').map(Number);
-  return new Date(y,m-2,1).toISOString().slice(0,7);
+  const prev=m===1?{y:y-1,m:12}:{y,m:m-1};
+  return prev.y+'-'+String(prev.m).padStart(2,'0');
 }
 function monthStats(key){
   let rawEarned=0,expected=0,paid=0,units=0,newUnits=0,used=0,motab=0;

@@ -116,10 +116,6 @@ tr:hover { background: rgba(200,16,46,0.04); }
 .tab.active { background: var(--red); border-color: var(--red); color: white; }
 .section { display: none; } .section.active { display: block; }
 .setup-steps { background: var(--card2); border-radius: 8px; padding: 0.9rem; font-size: 0.8rem; color: var(--muted); line-height: 1.65; }
-.setup-steps ol { padding-left: 1.15rem; }
-.setup-steps strong { color: var(--text); }
-.setup-steps code, .setup-steps pre { background: var(--bg); padding: 0.1rem 0.3rem; border-radius: 4px; font-size: 0.72rem; color: var(--yellow); }
-.accuracy-note { font-size: 0.7rem; color: var(--muted); margin-top: 0.7rem; padding: 0.55rem; background: var(--bg); border-radius: 6px; border-left: 3px solid var(--red); }
 .hist-row {
   display: grid; grid-template-columns: 90px 1fr 1fr 1fr; gap: 0.5rem;
   padding: 0.55rem 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; align-items: center;
@@ -127,6 +123,13 @@ tr:hover { background: rgba(200,16,46,0.04); }
 .hist-row.header { color: var(--muted); font-size: 0.65rem; text-transform: uppercase; font-weight: 600; }
 footer { text-align: center; padding: 1.4rem; color: var(--muted); font-size: 0.68rem; border-top: 1px solid var(--border); margin-top: 1.8rem; }
 footer strong { color: var(--red); }
+.play-line { margin-bottom: 0.55rem; }
+.play-line strong { color: var(--text); }
+.fi-row { display: flex; justify-content: space-between; align-items: center; padding: 0.4rem 0; border-bottom: 1px solid var(--border); }
+.fi-bar { height: 5px; background: var(--border); border-radius: 3px; margin-top: 0.25rem; overflow: hidden; }
+.fi-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+.fire { color: #f97316; }
+.crush { color: var(--green); }
 @media (max-width: 600px) {
   .row, .row-3 { grid-template-columns: 1fr; }
   .stat { font-size: 1.3rem; }
@@ -204,6 +207,7 @@ footer strong { color: var(--red); }
     <button class="tab" data-tab="deals">Deals</button>
     <button class="tab" data-tab="history">History</button>
     <button class="tab" data-tab="model">What-If</button>
+    <button class="tab" data-tab="playbook">Playbook</button>
     <button class="tab" data-tab="cloud">Cloud</button>
     <button class="tab" data-tab="settings">Settings</button>
   </div>
@@ -222,7 +226,11 @@ footer strong { color: var(--red); }
     <div class="card" style="margin-top:0.9rem;">
       <h2>This week's pace</h2>
       <div id="weeklyReminder" style="font-size:0.85rem;color:var(--muted);line-height:1.6;margin-bottom:0.6rem;"></div>
-      <button class="btn-secondary btn-sm" onclick="copyWeeklyReminder()">Copy reminder text</button>
+      <div id="fireNote" style="margin-top:0.5rem;font-size:0.85rem;font-weight:600;"></div>
+    </div>
+    <div class="card" style="margin-top:0.9rem;">
+      <h2>F&amp;I conversion (min 35%)</h2>
+      <div id="fiConversion" style="font-size:0.82rem;"></div>
     </div>
     <div class="card" style="margin-top:0.9rem;">
       <h2>Quick actions</h2>
@@ -341,11 +349,49 @@ footer strong { color: var(--red); }
     </div>
   </div>
 
+  <div class="section" id="sec-playbook">
+    <div class="card">
+      <h2>60-second recall</h2>
+      <p style="font-size:0.9rem;line-height:1.6;margin-bottom:0.75rem;">
+        <em>"My job is to make it easy to buy. I will welcome well, discover properly, show value, keep the route clear and ask for the next step."</em>
+      </p>
+      <div style="display:flex;flex-wrap:wrap;gap:0.35rem;font-size:0.72rem;font-weight:600;">
+        <span class="tag tag-new">Welcome</span>
+        <span class="tag tag-new">Rapport</span>
+        <span class="tag tag-new">Discovery</span>
+        <span class="tag tag-used">Presentation</span>
+        <span class="tag tag-used">Part Ex</span>
+        <span class="tag tag-used">F&amp;I</span>
+        <span class="tag tag-motab">Test Drive</span>
+        <span class="tag tag-motab">Buy signals</span>
+        <span class="tag tag-motab">Invite</span>
+        <span class="tag tag-order">Next action</span>
+      </div>
+    </div>
+    <div class="card" style="margin-top:0.9rem;">
+      <h2>Jump to</h2>
+      <div style="display:flex;flex-wrap:wrap;gap:0.4rem;">
+        <button class="btn-secondary btn-sm" onclick="showPlay('route')">Full route</button>
+        <button class="btn-secondary btn-sm" onclick="showPlay('discovery')">Discovery</button>
+        <button class="btn-secondary btn-sm" onclick="showPlay('fi')">F&amp;I Buyology</button>
+        <button class="btn-secondary btn-sm" onclick="showPlay('invite')">Invitation to buy</button>
+        <button class="btn-secondary btn-sm" onclick="showPlay('scripts')">Script library</button>
+        <button class="btn-secondary btn-sm" onclick="showPlay('phone')">Phone</button>
+        <button class="btn-secondary btn-sm" onclick="showPlay('video')">Video</button>
+        <button class="btn-secondary btn-sm" onclick="showPlay('check')">Checklists</button>
+      </div>
+    </div>
+    <div class="card" style="margin-top:0.9rem;" id="playContent">
+      <h2>Full sales route</h2>
+      <div style="font-size:0.85rem;line-height:1.75;color:var(--muted);" id="playBody"></div>
+    </div>
+  </div>
+
   <div class="section" id="sec-cloud">
     <div class="card">
       <h2>Cloud Sync (Supabase)</h2>
       <div class="setup-steps" style="margin-bottom:0.9rem;">
-        Already connected? Keys are saved in this browser. Open the same URL on another device, paste the same keys once, and data stays in sync.
+        Already connected? Keys stay in this browser. Same keys on another device = same data.
       </div>
       <div><label>Supabase Project URL</label><input type="text" id="sbUrl" placeholder="https://xxxxx.supabase.co"></div>
       <div style="margin-top:0.55rem;"><label>Supabase anon (public) key</label><input type="text" id="sbKey" placeholder="eyJ..."></div>
@@ -362,7 +408,7 @@ footer strong { color: var(--red); }
   <div class="section" id="sec-settings">
     <div class="card">
       <h2>Monthly unit target</h2>
-      <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.6rem;">Change this each month. Default is ~13 (160 / 12).</p>
+      <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.6rem;">Change this each month. Default is ~14.</p>
       <div class="row">
         <div>
           <label>This month's unit target</label>
@@ -393,28 +439,10 @@ footer strong { color: var(--red); }
       <button class="btn-primary" style="margin-top:0.8rem;" onclick="saveSettings()">Save Settings</button>
       <button class="btn-secondary" style="margin-top:0.8rem;margin-left:0.4rem;" onclick="if(confirm('Clear ALL deals?')){clearDeals()}">Clear All Deals</button>
     </div>
-    <div class="card" style="margin-top:0.9rem;">
-      <h2>Scheme reference (GAP removed)</h2>
-      <table>
-        <tr><th>Type</th><th>Order</th><th>Delivery</th></tr>
-        <tr><td>New Retail</td><td>£40</td><td>£40</td></tr>
-        <tr><td>New Motability</td><td>£30</td><td>£30</td></tr>
-        <tr><td>Used</td><td>-</td><td>£60</td></tr>
-      </table>
-      <p style="margin-top:0.6rem;font-size:0.78rem;color:var(--muted);">
-        F&amp;I New: Finance £10 · Paint/Refresh/Warranty £35 · Care Pack £25<br>
-        F&amp;I Used: Finance £60 · Paint/Refresh/Warranty £30 · Assurance £10<br>
-        Annual: 160=£1k · 200=£2k · 240=£4k
-      </p>
-      <div class="accuracy-note">
-        CSI, mystery shop and the 20% new-car reduction only appear on your payslip - they are optional here so you are not blocked. Rates match your signed 2026/27 scheme.
-      </div>
-    </div>
   </div>
 </div>
 
 <footer><strong>Pentagon Motor Group</strong> · Sales Consultant Commission Tracker 2026/27 · Private use only</footer>
-
 <script src="app.js"></script>
 </body>
 </html>

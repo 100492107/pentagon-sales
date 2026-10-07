@@ -19,10 +19,11 @@ const STAGE_LABELS = {
   'awaiting-delivery':'Awaiting delivery', delivered:'Delivered', lost:'Lost / cancelled'
 };
 const ANNUAL_TARGET = 160;
-// Personal annual tracker follows the user's January-to-December calendar year.
-const ANNUAL_YEAR = new Date().getFullYear();
-const ANNUAL_START = ANNUAL_YEAR+'-01-01';
-const ANNUAL_END   = ANNUAL_YEAR+'-12-31';
+// Pentagon's scheme year runs July to June.
+const nowForScheme = new Date();
+const ANNUAL_YEAR = nowForScheme.getMonth() >= 6 ? nowForScheme.getFullYear() : nowForScheme.getFullYear() - 1;
+const ANNUAL_START = ANNUAL_YEAR+'-07-01';
+const ANNUAL_END   = (ANNUAL_YEAR+1)+'-06-30';
 const ORDER_COMMISSION_START = '2026-07-01';
 
 let deals = JSON.parse(localStorage.getItem('ps_deals') || '[]');
@@ -49,7 +50,7 @@ function shortMonth(key){ if(!/^\d{4}-\d{2}$/.test(key)) return '—'; const [y,
 function dateLabel(s){ return s ? parseDate(s).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '—'; }
 function currentMonthKey(){ return monthKey(todayKey()); }
 function previousMonthKey(){ const d=new Date(); d.setMonth(d.getMonth()-1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
-function annualMonths(){ const out=[]; const d=new Date(ANNUAL_YEAR,0,1,12); for(let i=0;i<12;i++){ out.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')); d.setMonth(d.getMonth()+1); } return out; }
+function annualMonths(){ const out=[]; const d=new Date(ANNUAL_YEAR,6,1,12); for(let i=0;i<12;i++){ out.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')); d.setMonth(d.getMonth()+1); } return out; }
 
 function persist(){
   localStorage.setItem('ps_deals', JSON.stringify(deals));

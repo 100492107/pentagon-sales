@@ -240,7 +240,7 @@ function renderSummary(){
   const next=monthStats(payMonthForCurrent());
   document.getElementById('dashExpected').textContent=money(next.expected);
   document.getElementById('dashExpectedSub').textContent=monthLabel(next.key)+' payslip view';
-  document.getElementById('dashPaid').textContent=money(next.paid);
+  document.getElementById('dashPaid').textContent=money(prev.paid);
   const openTasks=tasks.filter(t=>!t.done);
   const overdue=openTasks.filter(t=>t.due && t.due<todayKey()).length;
   document.getElementById('dashWork').textContent=String(openTasks.length);

@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pentagon Sales HQ — Commission Tracker</title>
+<style>
+  :root {
+    --bg: #0f1419;
+    --card: #1a2332;
+    --border: #2d3a4f;
+    --text: #e8eef5;
+    --muted: #8b9cb3;
+    --accent: #e63946;
+    --green: #2ec4b6;
+    --yellow: #ffd166;
+    --blue: #4cc9f0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+  header {
+    background: linear-gradient(135deg, #1a2332 0%, #0f1419 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  header h1 {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  header .sub { font-size: 0.8rem; color: var(--muted); }
+  .container { max-width: 1100px; margin: 0 auto; padding: 1.25rem; }
+  .grid { display: grid; gap: 1rem; }
+  .grid-2 { grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .grid-3 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+  }
+  .card h2 {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    margin-bottom: 0.75rem;
+  }
+  .stat { font-size: 1.75rem; font-weight: 700; }
+  .stat.green { color: var(--green); }
+  .stat.yellow { color: var(--yellow); }
+  .stat.red { color: var(--accent); }
+  .stat.blue { color: var(--blue); }
+  .label { font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; }
+  .progress-bar {
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 0.5rem;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--green);
+    border-radius: 4px;
+    transition: width 0.3s;
+  }
+  form { display: grid; gap: 0.75rem; }
+  label { font-size: 0.8rem; color: var(--muted); display: block; margin-bottom: 0.25rem; }
+  input, select, textarea {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-size: 0.95rem;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+  }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.75rem; }
+  .checkboxes { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+  .checkboxes label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    color: var(--text);
+    font-size: 0.9rem;
+  }
+  .checkboxes input { width: auto; }
+  button {
+    padding: 0.7rem 1.25rem;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: opacity 0.2s;
+  }
+  button:hover { opacity: 0.9; }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-secondary { background: var(--border); color: var(--text); }
+  .btn-green { background: var(--green); color: #0f1419; }
+  .btn-sm { padding: 0.4rem 0.75rem; font-size: 0.8rem; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  th, td { padding: 0.6rem 0.5rem; text-align: left; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; }
+  tr:hover { background: rgba(255,255,255,0.03); }
+  .tag {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+  .tag-new { background: #1e3a5f; color: var(--blue); }
+  .tag-used { background: #1e3a2f; color: var(--green); }
+  .tag-motab { background: #3a2e1e; color: var(--yellow); }
+  .actions { display: flex; gap: 0.4rem; }
+  .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+  .tab {
+    padding: 0.5rem 1rem;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .tab.active { background: var(--accent); border-color: var(--accent); color: white; }
+  .section { display: none; }
+  .section.active { display: block; }
+  .target-box {
+    background: linear-gradient(135deg, #1e3a2f 0%, #1a2332 100%);
+    border: 1px solid var(--green);
+    border-radius: 12px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  .target-box h3 { color: var(--green); margin-bottom: 0.5rem; }
+  footer {
+    text-align: center;
+    padding: 1.5rem;
+    color: var(--muted);
+    font-size: 0.75rem;
+    border-top: 1px solid var(--border);
+    margin-top: 2rem;
+  }
+  @media (max-width: 600px) {
+    .row, .row-3 { grid-template-columns: 1fr; }
+    .stat { font-size: 1.4rem; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Pentagon Sales HQ</h1>
+    <div class="sub">Commission Tracker 2026/27 — GAP removed</div>
+  </div>
+  <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+    <button class="btn-secondary btn-sm" onclick="exportData()">Export JSON</button>
+    <button class="btn-secondary btn-sm" onclick="document.getElementById('importFile').click()">Import</button>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+  </div>
+</header>
+
+<div class="container">
+  <!-- Target Banner -->
+  <div class="target-box">
+    <h3>£3,000 take-home target</h3>
+    <div class="grid grid-3" style="gap:0.75rem;">
+      <div>
+        <div class="stat blue" id="grossNeeded">£3,760</div>
+        <div class="label">Gross needed / month</div>
+      </div>
+      <div>
+        <div class="stat yellow" id="commNeeded">£2,093</div>
+        <div class="label">Commission needed</div>
+      </div>
+      <div>
+        <div class="stat" id="takeHomeNow">£0</div>
+        <div class="label">This month take-home (est.)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="grid grid-3" style="margin-bottom:1.25rem;">
+    <div class="card">
+      <h2>This Month</h2>
+      <div class="stat green" id="monthComm">£0</div>
+      <div class="label">Commission earned</div>
+      <div class="progress-bar"><div class="progress-fill" id="monthProg" style="width:0%"></div></div>
+      <div class="label" id="monthUnits">0 units</div>
+    </div>
+    <div class="card">
+      <h2>Year to Date</h2>
+      <div class="stat blue" id="yearComm">£0</div>
+      <div class="label">Total commission</div>
+      <div class="progress-bar"><div class="progress-fill" id="yearProg" style="width:0%"></div></div>
+      <div class="label" id="yearUnits">0 / 160 units</div>
+    </div>
+    <div class="card">
+      <h2>Annual Bonus</h2>
+      <div class="stat yellow" id="annualBonus">£0</div>
+      <div class="label" id="bonusLabel">Need 160 for £1,000</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" data-tab="add">Add Deal</button>
+    <button class="tab" data-tab="deals">Deals</button>
+    <button class="tab" data-tab="model">What-If</button>
+    <button class="tab" data-tab="settings">Settings</button>
+  </div>
+
+  <!-- ADD DEAL -->
+  <div class="section active" id="sec-add">
+    <div class="card">
+      <h2>Log a Deal</h2>
+      <form id="dealForm">
+        <div class="row">
+          <div>
+            <label>Date</label>
+            <input type="date" id="dealDate" required>
+          </div>
+          <div>
+            <label>Customer / Stock #</label>
+            <input type="text" id="dealCustomer" placeholder="e.g. Smith / AB12 CDE">
+          </div>
+        </div>
+        <div class="row">
+          <div>
+            <label>Vehicle Type</label>
+            <select id="dealType">
+              <option value="new-retail">New Retail</option>
+              <option value="new-motab">New Motability</option>
+              <option value="used">Used</option>
+            </select>
+          </div>
+          <div>
+            <label>Status</label>
+            <select id="dealStatus">
+              <option value="order">Order only</option>
+              <option value="delivery">Delivery</option>
+              <option value="both">Order + Delivery</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label>F&amp;I Products (GAP removed)</label>
+          <div class="checkboxes" id="fiChecks"></div>
+        </div>
+        <div class="row">
+          <div>
+            <label>CSI Score (optional)</label>
+            <input type="number" id="dealCsi" min="0" max="10" step="0.1" placeholder="e.g. 9.2">
+          </div>
+          <div>
+            <label>Notes</label>
+            <input type="text" id="dealNotes" placeholder="Optional">
+          </div>
+        </div>
+        <button type="submit" class="btn-primary" style="margin-top:0.5rem;">Add Deal</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- DEALS LIST -->
+  <div class="section" id="sec-deals">
+    <div class="card">
+      <h2>All Deals <span id="dealCount" style="color:var(--muted);font-weight:400;"></span></h2>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Customer</th>
+              <th>Type</th>
+              <th>Status</th>
+              <th>F&amp;I</th>
+              <th>Comm</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="dealsBody"></tbody>
+        </table>
+      </div>
+      <p id="noDeals" style="color:var(--muted);margin-top:1rem;display:none;">No deals yet. Add your first one above.</p>
+    </div>
+  </div>
+
+  <!-- WHAT-IF -->
+  <div class="section" id="sec-model">
+    <div class="card">
+      <h2>What-If Calculator</h2>
+      <p style="color:var(--muted);font-size:0.85rem;margin-bottom:1rem;">Model a hypothetical month. Does not affect real data.</p>
+      <div class="row-3">
+        <div>
+          <label>New Retail</label>
+          <input type="number" id="mNewRetail" value="6" min="0">
+        </div>
+        <div>
+          <label>New Motability</label>
+          <input type="number" id="mNewMotab" value="2" min="0">
+        </div>
+        <div>
+          <label>Used</label>
+          <input type="number" id="mUsed" value="6" min="0">
+        </div>
+      </div>
+      <div class="row" style="margin-top:0.75rem;">
+        <div>
+          <label>Avg F&amp;I per New (£)</label>
+          <input type="number" id="mFiNew" value="80" min="0">
+        </div>
+        <div>
+          <label>Avg F&amp;I per Used (£)</label>
+          <input type="number" id="mFiUsed" value="120" min="0">
+        </div>
+      </div>
+      <button class="btn-green" style="margin-top:1rem;" onclick="runModel()">Calculate</button>
+      <div id="modelResult" style="margin-top:1.25rem;display:none;">
+        <div class="grid grid-3">
+          <div>
+            <div class="stat green" id="mVehicle">£0</div>
+            <div class="label">Vehicle commission</div>
+          </div>
+          <div>
+            <div class="stat blue" id="mFi">£0</div>
+            <div class="label">F&amp;I commission</div>
+          </div>
+          <div>
+            <div class="stat yellow" id="mTotal">£0</div>
+            <div class="label">Total commission</div>
+          </div>
+        </div>
+        <div style="margin-top:0.75rem;">
+          <div class="stat" id="mTakeHome">£0</div>
+          <div class="label">Estimated take-home (basic + commission)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS -->
+  <div class="section" id="sec-settings">
+    <div class="card">
+      <h2>Settings</h2>
+      <div class="row">
+        <div>
+          <label>Basic salary (£ / year)</label>
+          <input type="number" id="setBasic" value="20000">
+        </div>
+        <div>
+          <label>Pension contribution %</label>
+          <input type="number" id="setPension" value="0" min="0" max="100" step="0.5">
+        </div>
+      </div>
+      <div class="row" style="margin-top:0.75rem;">
+        <div>
+          <label>Tax year start month (1=Jan … 7=Jul)</label>
+          <input type="number" id="setTaxYearStart" value="7" min="1" max="12">
+        </div>
+        <div>
+          <label>Other monthly deductions (£)</label>
+          <input type="number" id="setOtherDed" value="0" min="0">
+        </div>
+      </div>
+      <button class="btn-primary" style="margin-top:1rem;" onclick="saveSettings()">Save Settings</button>
+      <button class="btn-secondary" style="margin-top:1rem;margin-left:0.5rem;" onclick="if(confirm('Clear ALL deals?')){clearDeals()}">Clear All Deals</button>
+    </div>
+    <div class="card" style="margin-top:1rem;">
+      <h2>Scheme Reference (GAP removed)</h2>
+      <table>
+        <tr><th>Type</th><th>Order</th><th>Delivery</th></tr>
+        <tr><td>New Retail</td><td>£40</td><td>£40</td></tr>
+        <tr><td>New Motability</td><td>£30</td><td>£30</td></tr>
+        <tr><td>Used</td><td>—</td><td>£60</td></tr>
+      </table>
+      <p style="margin-top:0.75rem;font-size:0.85rem;color:var(--muted);">F&amp;I (New): Finance £10 · Paint £35 · Refresh £35 · Warranty £35 · Motab Care Pack £25</p>
+      <p style="font-size:0.85rem;color:var(--muted);">F&amp;I (Used): Finance £60 · Paint £30 · Refresh £30 · Warranty £30 · Assurance Upgrade £10</p>
+      <p style="font-size:0.85rem;color:var(--muted);margin-top:0.5rem;">Annual: 160=£1k · 200=£2k · 240=£4k (CSI 9+ &amp; EV mix)</p>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Pentagon Motor Group Sales Consultant Commission Tracker 2026/27 · Data stored locally in your browser
+</footer>
+
+<script>
+// ===== SCHEME (GAP REMOVED) =====
+const SCHEME = {
+  vehicle: {
+    'new-retail': { order: 40, delivery: 40 },
+    'new-motab':  { order: 30, delivery: 30 },
+    'used':       { order: 0,  delivery: 60 }
+  },
+  fi: {
+    'new-retail': {
+      finance: 10, paint: 35, refresh: 35, warranty: 35, carepack: 25
+    },
+    'new-motab': {
+      finance: 10, paint: 35, refresh: 35, warranty: 35, carepack: 25
+    },
+    'used': {
+      finance: 60, paint: 30, refresh: 30, warranty: 30, assurance: 10
+    }
+  }
+};
+
+const FI_LABELS = {
+  finance: 'Finance',
+  paint: 'Paint',
+  refresh: 'Refresh',
+  warranty: 'Warranty',
+  carepack: 'Motab Care Pack',
+  assurance: 'Assurance Upgrade'
+};
+
+// ===== STATE =====
+let deals = JSON.parse(localStorage.getItem('ps_deals') || '[]');
+let settings = JSON.parse(localStorage.getItem('ps_settings') || '{"basic":20000,"pension":0,"taxYearStart":7,"otherDed":0}');
+
+// ===== TAX (2026/27 England approximate) =====
+function estimateTakeHome(grossAnnual) {
+  const pa = 12570;
+  const basicLimit = 50270;
+  const higherLimit = 125140;
+  let taxable = Math.max(0, grossAnnual - pa);
+  let tax = 0;
+  if (taxable > 0) {
+    const basicBand = Math.min(taxable, basicLimit - pa);
+    tax += basicBand * 0.20;
+    taxable -= basicBand;
+  }
+  if (taxable > 0) {
+    const higherBand = Math.min(taxable, higherLimit - basicLimit);
+    tax += higherBand * 0.40;
+    taxable -= higherBand;
+  }
+  if (taxable > 0) tax += taxable * 0.45;
+
+  // Employee NI (simplified 2026 rates)
+  const niPrimary = 12570;
+  const niUpper = 50270;
+  let ni = 0;
+  const earnings = grossAnnual;
+  if (earnings > niPrimary) {
+    const mid = Math.min(earnings, niUpper) - niPrimary;
+    ni += mid * 0.08;
+  }
+  if (earnings > niUpper) {
+    ni += (earnings - niUpper) * 0.02;
+  }
+
+  const pension = (settings.pension / 100) * grossAnnual;
+  const other = (settings.otherDed || 0) * 12;
+  return Math.max(0, grossAnnual - tax - ni - pension - other);
+}
+
+function calcGrossForTakeHome(targetMonthly) {
+  // Binary search approximate gross
+  let low = targetMonthly * 12;
+  let high = targetMonthly * 12 * 1.6;
+  for (let i = 0; i < 30; i++) {
+    const mid = (low + high) / 2;
+    const th = estimateTakeHome(mid) / 12;
+    if (th < targetMonthly) low = mid;
+    else high = mid;
+  }
+  return Math.round((low + high) / 2);
+}
+
+// ===== COMMISSION CALC =====
+function calcDealComm(d) {
+  const v = SCHEME.vehicle[d.type] || { order: 0, delivery: 0 };
+  let vehicle = 0;
+  if (d.status === 'order' || d.status === 'both') vehicle += v.order;
+  if (d.status === 'delivery' || d.status === 'both') vehicle += v.delivery;
+
+  let fi = 0;
+  const products = SCHEME.fi[d.type] || {};
+  (d.fi || []).forEach(p => {
+    if (products[p]) fi += products[p];
+  });
+
+  // CSI clawback
+  if (d.csi !== null && d.csi !== undefined && d.csi < 8) {
+    return { vehicle: 0, fi: 0, total: 0, clawed: true };
+  }
+  return { vehicle, fi, total: vehicle + fi, clawed: false };
+}
+
+// ===== RENDER =====
+function renderFiChecks() {
+  const type = document.getElementById('dealType').value;
+  const products = SCHEME.fi[type] || {};
+  const el = document.getElementById('fiChecks');
+  el.innerHTML = Object.keys(products).map(k =>
+    `<label><input type="checkbox" name="fi" value="${k}"> ${FI_LABELS[k] || k} (£${products[k]})</label>`
+  ).join('');
+}
+
+function getMonthKey(dateStr) {
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+function getCurrentMonthKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+}
+
+function updateSummary() {
+  const nowKey = getCurrentMonthKey();
+  let monthComm = 0, monthUnits = 0;
+  let yearComm = 0, yearUnits = 0;
+
+  deals.forEach(d => {
+    const c = calcDealComm(d);
+    const key = getMonthKey(d.date);
+    if (key === nowKey) {
+      monthComm += c.total;
+      if (d.status === 'delivery' || d.status === 'both') monthUnits++;
+    }
+    yearComm += c.total;
+    if (d.status === 'delivery' || d.status === 'both') yearUnits++;
+  });
+
+  document.getElementById('monthComm').textContent = '£' + monthComm.toLocaleString();
+  document.getElementById('monthUnits').textContent = monthUnits + ' units';
+  document.getElementById('monthProg').style.width = Math.min(100, (monthComm / (settings._commNeeded || 2093)) * 100) + '%';
+
+  document.getElementById('yearComm').textContent = '£' + yearComm.toLocaleString();
+  document.getElementById('yearUnits').textContent = yearUnits + ' / 160 units';
+  document.getElementById('yearProg').style.width = Math.min(100, (yearUnits / 160) * 100) + '%';
+
+  let bonus = 0, bonusLabel = 'Need 160 for £1,000';
+  if (yearUnits >= 240) { bonus = 4000; bonusLabel = '240+ achieved'; }
+  else if (yearUnits >= 200) { bonus = 2000; bonusLabel = '200 achieved — next 240 for £4k'; }
+  else if (yearUnits >= 160) { bonus = 1000; bonusLabel = '160 achieved — next 200 for £2k'; }
+  else bonusLabel = `Need ${160 - yearUnits} more for £1,000`;
+  document.getElementById('annualBonus').textContent = '£' + bonus.toLocaleString();
+  document.getElementById('bonusLabel').textContent = bonusLabel;
+
+  // Take-home estimate for current month
+  const basicMonthly = (settings.basic || 20000) / 12;
+  const grossThisMonth = basicMonthly + monthComm;
+  const annualised = grossThisMonth * 12;
+  const th = estimateTakeHome(annualised) / 12;
+  document.getElementById('takeHomeNow').textContent = '£' + Math.round(th).toLocaleString();
+  document.getElementById('takeHomeNow').className = 'stat ' + (th >= 3000 ? 'green' : th >= 2500 ? 'yellow' : 'red');
+
+  // Update target numbers
+  const grossNeeded = calcGrossForTakeHome(3000);
+  const basic = settings.basic || 20000;
+  const commNeeded = Math.max(0, Math.round(grossNeeded / 12 - basic / 12));
+  settings._commNeeded = commNeeded;
+  document.getElementById('grossNeeded').textContent = '£' + Math.round(grossNeeded / 12).toLocaleString();
+  document.getElementById('commNeeded').textContent = '£' + commNeeded.toLocaleString();
+}
+
+function renderDeals() {
+  const tbody = document.getElementById('dealsBody');
+  const noDeals = document.getElementById('noDeals');
+  document.getElementById('dealCount').textContent = `(${deals.length})`;
+
+  if (deals.length === 0) {
+    tbody.innerHTML = '';
+    noDeals.style.display = 'block';
+    return;
+  }
+  noDeals.style.display = 'none';
+
+  const sorted = [...deals].sort((a,b) => b.date.localeCompare(a.date));
+  tbody.innerHTML = sorted.map((d, idx) => {
+    const c = calcDealComm(d);
+    const typeTag = d.type === 'used' ? 'tag-used' : d.type === 'new-motab' ? 'tag-motab' : 'tag-new';
+    const typeLabel = d.type === 'used' ? 'Used' : d.type === 'new-motab' ? 'Motab' : 'New';
+    const fiStr = (d.fi || []).map(p => FI_LABELS[p] || p).join(', ') || '—';
+    return `<tr>
+      <td>${d.date}</td>
+      <td>${d.customer || '—'}</td>
+      <td><span class="tag ${typeTag}">${typeLabel}</span></td>
+      <td>${d.status}</td>
+      <td style="font-size:0.75rem;">${fiStr}</td>
+      <td>£${c.total}${c.clawed ? ' <span style="color:var(--accent)">(CSI)</span>' : ''}</td>
+      <td class="actions">
+        <button class="btn-secondary btn-sm" onclick="deleteDeal('${d.id}')">×</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ===== ACTIONS =====
+function addDeal(e) {
+  e.preventDefault();
+  const fi = [...document.querySelectorAll('input[name="fi"]:checked')].map(c => c.value);
+  const deal = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+    date: document.getElementById('dealDate').value,
+    customer: document.getElementById('dealCustomer').value.trim(),
+    type: document.getElementById('dealType').value,
+    status: document.getElementById('dealStatus').value,
+    fi,
+    csi: document.getElementById('dealCsi').value ? parseFloat(document.getElementById('dealCsi').value) : null,
+    notes: document.getElementById('dealNotes').value.trim()
+  };
+  deals.push(deal);
+  localStorage.setItem('ps_deals', JSON.stringify(deals));
+  document.getElementById('dealForm').reset();
+  document.getElementById('dealDate').valueAsDate = new Date();
+  renderFiChecks();
+  updateSummary();
+  renderDeals();
+  // switch to deals tab
+  document.querySelector('[data-tab="deals"]').click();
+}
+
+function deleteDeal(id) {
+  if (!confirm('Delete this deal?')) return;
+  deals = deals.filter(d => d.id !== id);
+  localStorage.setItem('ps_deals', JSON.stringify(deals));
+  updateSummary();
+  renderDeals();
+}
+
+function clearDeals() {
+  deals = [];
+  localStorage.setItem('ps_deals', '[]');
+  updateSummary();
+  renderDeals();
+}
+
+function saveSettings() {
+  settings.basic = parseFloat(document.getElementById('setBasic').value) || 20000;
+  settings.pension = parseFloat(document.getElementById('setPension').value) || 0;
+  settings.taxYearStart = parseInt(document.getElementById('setTaxYearStart').value) || 7;
+  settings.otherDed = parseFloat(document.getElementById('setOtherDed').value) || 0;
+  localStorage.setItem('ps_settings', JSON.stringify(settings));
+  updateSummary();
+  alert('Settings saved');
+}
+
+function runModel() {
+  const nr = parseInt(document.getElementById('mNewRetail').value) || 0;
+  const nm = parseInt(document.getElementById('mNewMotab').value) || 0;
+  const u  = parseInt(document.getElementById('mUsed').value) || 0;
+  const fiN = parseFloat(document.getElementById('mFiNew').value) || 0;
+  const fiU = parseFloat(document.getElementById('mFiUsed').value) || 0;
+
+  const veh = nr * 80 + nm * 60 + u * 60; // assume both order+delivery for new
+  const fi  = (nr + nm) * fiN + u * fiU;
+  const total = veh + fi;
+
+  document.getElementById('mVehicle').textContent = '£' + veh.toLocaleString();
+  document.getElementById('mFi').textContent = '£' + Math.round(fi).toLocaleString();
+  document.getElementById('mTotal').textContent = '£' + Math.round(total).toLocaleString();
+
+  const basicM = (settings.basic || 20000) / 12;
+  const gross = basicM + total;
+  const th = estimateTakeHome(gross * 12) / 12;
+  document.getElementById('mTakeHome').textContent = '£' + Math.round(th).toLocaleString();
+  document.getElementById('mTakeHome').className = 'stat ' + (th >= 3000 ? 'green' : th >= 2500 ? 'yellow' : '');
+  document.getElementById('modelResult').style.display = 'block';
+}
+
+function exportData() {
+  const data = { deals, settings, exported: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `pentagon-commission-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+}
+
+function importData(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      if (data.deals) deals = data.deals;
+      if (data.settings) settings = data.settings;
+      localStorage.setItem('ps_deals', JSON.stringify(deals));
+      localStorage.setItem('ps_settings', JSON.stringify(settings));
+      loadSettingsUI();
+      updateSummary();
+      renderDeals();
+      alert('Import successful');
+    } catch (err) {
+      alert('Invalid JSON file');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function loadSettingsUI() {
+  document.getElementById('setBasic').value = settings.basic || 20000;
+  document.getElementById('setPension').value = settings.pension || 0;
+  document.getElementById('setTaxYearStart').value = settings.taxYearStart || 7;
+  document.getElementById('setOtherDed').value = settings.otherDed || 0;
+}
+
+// ===== TABS =====
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('sec-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+document.getElementById('dealType').addEventListener('change', renderFiChecks);
+document.getElementById('dealForm').addEventListener('submit', addDeal);
+
+// ===== INIT =====
+document.getElementById('dealDate').valueAsDate = new Date();
+renderFiChecks();
+loadSettingsUI();
+updateSummary();
+renderDeals();
+</script>
+</body>
+</html>

@@ -19,8 +19,7 @@ const STAGE_LABELS = {
   'awaiting-delivery':'Awaiting delivery', delivered:'Delivered', lost:'Lost / cancelled'
 };
 const ANNUAL_TARGET = 160;
-// Personal annual tracker follows the user's January-to-January calendar period.
-// Display is January–December for the current calendar year.
+// Personal annual tracker follows the user's January-to-December calendar year.
 const ANNUAL_YEAR = new Date().getFullYear();
 const ANNUAL_START = ANNUAL_YEAR+'-01-01';
 const ANNUAL_END   = ANNUAL_YEAR+'-12-31';

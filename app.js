@@ -513,7 +513,7 @@ function renderCommission(){
     const x=monthStats(k),t=monthTarget(k),na=monthNA(k);
     const status=na?'N/A':t===null?'Target not set':x.units>=t?'Target met':(t-x.units)+' to target';
     const badgeClass=na?'b-gray':status==='Target met'?'b-green':status==='Target not set'?'b-gray':'b-yellow';
-    return '<div class="monthbox"><h3>'+esc(shortMonth(k))+' <span class="small">'+k+'</span></h3>'+
+    return '<div class="monthbox '+(na?'na':'')+'"><h3>'+esc(shortMonth(k))+' <span class="small">'+k+'</span></h3>'+
       '<div class="n">'+money(x.earned)+'</div>'+
       '<div class="l">adjusted earned · '+x.units+' delivered</div>'+
       '<div class="l" style="margin-top:3px">gross before scheme reduction: '+money(x.grossEarned)+'</div>'+

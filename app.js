@@ -25,8 +25,10 @@ const ANNUAL_TARGET = 160;
 let deals = JSON.parse(localStorage.getItem('ps_deals') || '[]');
 let tasks = JSON.parse(localStorage.getItem('ps_tasks') || '[]');
 let settings = JSON.parse(localStorage.getItem('ps_settings') || JSON.stringify({
-  basic:20000, netTarget:3000, pension:0, otherDed:0, theme:'dark', monthTargets:{}
+  basic:20000, netTarget:3000, pension:0, otherDed:0, theme:'dark', monthTargets:{}, newVehicleTargets:{}
 }));
+settings.monthTargets=settings.monthTargets||{};
+settings.newVehicleTargets=settings.newVehicleTargets||{};
 let sb = null;
 let paymentContext = null;
 let openDealId = null;
@@ -99,6 +101,10 @@ function monthTarget(key){
   const v=(settings.monthTargets||{})[key];
   return v ? Number(v) : null;
 }
+function newVehicleTarget(key){
+  const v=(settings.newVehicleTargets||{})[key];
+  return v ? Number(v) : null;
+}
 
 function estimateAnnualNet(grossAnnual){
   const gross=Math.max(0,Number(grossAnnual)||0);
@@ -166,8 +172,27 @@ function eventPaid(d,e){ return Math.max(0,Number(paymentFor(d,e.id).amount)||0)
 function monthlyAdjustments(key){
   return deals.reduce((sum,d)=>(d.adjustments||[]).reduce((s,a)=>monthKey(a.date)===key?s+Number(a.amount||0):s, sum),0);
 }
+function schemeReduction(key,rawEarned,newDeliveries){
+  const target=newVehicleTarget(key);
+  if(target===null||newDeliveries>=target||rawEarned<=0)return 0;
+  return rawEarned*0.20;
+}
+function monthStatsRaw(key){
+  let rawEarned=0;
+  deals.forEach(d=>eventDefs(d).forEach(e=>{
+    const el=eligibleEvent(d,e);
+    if(e.eligibleDate&&monthKey(e.eligibleDate)===key)rawEarned+=el;
+  }));
+  const yearDeals=annualEligibleDeals().filter(d=>monthKey(d.deliveryDate)===key);
+  return {rawEarned,units:yearDeals.length,newUnits:yearDeals.filter(d=>d.type!=='used').length};
+}
+function previousKey(key){
+  if(!/^\d{4}-\d{2}$/.test(key))return '';
+  const [y,m]=key.split('-').map(Number);
+  return new Date(y,m-2,1).toISOString().slice(0,7);
+}
 function monthStats(key){
-  let earned=0,expected=0,paid=0,units=0,newUnits=0,used=0,motab=0;
+  let rawEarned=0,expected=0,paid=0,units=0,newUnits=0,used=0,motab=0;
   const expectedEvents=[];
   annualEligibleDeals().forEach(d=>{
     if(monthKey(d.deliveryDate)===key){
@@ -177,17 +202,23 @@ function monthStats(key){
   deals.forEach(d=>{
     eventDefs(d).forEach(e=>{
       const el=eligibleEvent(d,e);
-      if(e.eligibleDate && monthKey(e.eligibleDate)===key) earned+=el;
+      if(e.eligibleDate&&monthKey(e.eligibleDate)===key)rawEarned+=el;
       if(e.payMonth===key){
         const paidAlready=eventPaid(d,e);
         const remaining=Math.max(0,el-paidAlready);
         if(remaining>0){expected+=remaining;expectedEvents.push({d,e,remaining});}
       }
       const p=paymentFor(d,e);
-      if(p.date && monthKey(p.date)===key) paid+=Number(p.amount)||0;
+      if(p.date&&monthKey(p.date)===key)paid+=Number(p.amount)||0;
     });
   });
-  return {key,earned:earned+monthlyAdjustments(key),grossEarned:earned,adjustments:monthlyAdjustments(key),expected,paid,units,newUnits,used,motab,expectedEvents};
+  const adj=monthlyAdjustments(key);
+  const reduction=schemeReduction(key,rawEarned,newUnits+motab);
+  const prev=previousKey(key);
+  const prevRaw=monthStatsRaw(prev);
+  const priorReduction=schemeReduction(prev,prevRaw.rawEarned,prevRaw.newUnits);
+  expected=Math.max(0,expected-priorReduction);
+  return {key,earned:Math.max(0,rawEarned-reduction+adj),grossEarned:rawEarned,adjustments:adj,schemeReduction:reduction,expected,paid,units,newUnits,used,motab,expectedEvents,priorKey:prev,priorReduction};
 }
 function netForMonthCommission(comm){
   const grossMonth=(Number(settings.basic)||20000)/12+Number(comm||0);
@@ -280,7 +311,8 @@ function openTaskForEdit(id){openTaskModal(id)}
 function saveTask(e){
   e.preventDefault();
   const id=document.getElementById('taskModal').dataset.editId||'';
-  const obj={id:id||uid('task'),dealId:document.getElementById('tDeal').value,title:document.getElementById('tTitle').value.trim(),due:document.getElementById('tDue').value,type:document.getElementById('tType').value,priority:document.getElementById('tPriority').value,notes:document.getElementById('tNotes').value.trim(),done:false};
+  const existing=tasks.find(x=>x.id===id);
+  const obj={id:id||uid('task'),dealId:document.getElementById('tDeal').value,title:document.getElementById('tTitle').value.trim(),due:document.getElementById('tDue').value,type:document.getElementById('tType').value,priority:document.getElementById('tPriority').value,notes:document.getElementById('tNotes').value.trim(),done:existing?!!existing.done:false,completedDate:existing?.completedDate||''};
   const i=tasks.findIndex(x=>x.id===id); if(i>=0)tasks[i]={...tasks[i],...obj};else tasks.push(obj);
   persist();closeTaskModal();refreshAll();
 }
@@ -342,14 +374,15 @@ function openDealModal(id=''){
   document.getElementById('dealModalTitle').textContent=id?'Edit deal':'Add deal';
   document.getElementById('editId').value=id;
   document.getElementById('quickTaskDue').value=todayKey();
+  document.getElementById('adjDate').value=todayKey();
   if(!id){
     ['fCustomer','fPhone','fEmail','fVehicle','fStock','fPx','fNextAction','fDiary'].forEach(x=>document.getElementById(x).value='');
-    document.getElementById('fLeadDate').value=todayKey();document.getElementById('fOrderDate').value='';document.getElementById('fExpectedDelivery').value='';document.getElementById('fDeliveryDate').value='';document.getElementById('fFinancePayout').value='';document.getElementById('fCSI').value='';document.getElementById('fStage').value='lead';document.getElementById('fType').value='new-retail';buildFiChecks([]);document.getElementById('dealEvents').innerHTML='<div class="note">Save the deal first, then commission events and payment tracking appear here.</div>';document.getElementById('dealDiary').innerHTML='<div class="empty">Save the deal and start the diary.</div>';document.getElementById('dealTasks').innerHTML='<div class="empty">Save the deal before adding linked work.</div>';return;
+    document.getElementById('fLeadDate').value=todayKey();document.getElementById('fOrderDate').value='';document.getElementById('fExpectedDelivery').value='';document.getElementById('fDeliveryDate').value='';document.getElementById('fFinancePayout').value='';document.getElementById('fCSI').value='';document.getElementById('fStage').value='lead';document.getElementById('fType').value='new-retail';buildFiChecks([]);document.getElementById('dealEvents').innerHTML='<div class="note">Save the deal first, then commission events and payment tracking appear here.</div>';document.getElementById('dealDiary').innerHTML='<div class="empty">Save the deal and start the diary.</div>';document.getElementById('dealTasks').innerHTML='<div class="empty">Save the deal before adding linked work.</div>';document.getElementById('dealAdjustments').innerHTML='<div class="note">Save the deal first.</div>';return;
   }
   const d=deals.find(x=>x.id===id);if(!d)return;
   document.getElementById('fCustomer').value=d.customer;document.getElementById('fPhone').value=d.phone||'';document.getElementById('fEmail').value=d.email||'';document.getElementById('fVehicle').value=d.vehicle||'';document.getElementById('fStock').value=d.stock||'';
   document.getElementById('fType').value=d.type;document.getElementById('fStage').value=d.stage;document.getElementById('fLeadDate').value=d.leadDate||'';document.getElementById('fOrderDate').value=d.orderDate||'';document.getElementById('fExpectedDelivery').value=d.expectedDeliveryDate||'';document.getElementById('fDeliveryDate').value=d.deliveryDate||'';document.getElementById('fFinancePayout').value=d.financePayoutDate||'';document.getElementById('fCSI').value=d.csi??'';document.getElementById('fPx').value=d.px||'';document.getElementById('fNextAction').value=d.nextAction||'';
-  buildFiChecks(d.fi||[]);renderDealEventsInModal();renderDealDiary();renderDealTasks();
+  buildFiChecks(d.fi||[]);renderDealEventsInModal();renderDealDiary();renderDealTasks();renderDealAdjustments();
 }
 function closeDealModal(){document.getElementById('dealModal').classList.remove('show');openDealId=null}
 function saveDeal(e){
@@ -379,6 +412,23 @@ function addQuickTask(){
   tasks.push({id:uid('task'),dealId:openDealId,title,due:document.getElementById('quickTaskDue').value,type:document.getElementById('quickTaskType').value,priority:'normal',notes:'',done:false});
   document.getElementById('quickTaskTitle').value='';persist();renderDealTasks();renderWork();cloudSave();
 }
+function renderDealAdjustments(){
+  if(!openDealId)return;const d=deals.find(x=>x.id===openDealId);if(!d)return;
+  const rows=d.adjustments||[];
+  document.getElementById('dealAdjustments').innerHTML=rows.length?rows.map((a,i)=>`<div class="statline"><span>${dateLabel(a.date)} · ${esc(a.reason||'Adjustment')}</span><strong>${money2(a.amount)}</strong><button class="btn sm danger" type="button" onclick="removeDealAdjustment(${i})">Remove</button></div>`).join(''):'<div class="note">No manual adjustments recorded.</div>';
+}
+function addDealAdjustment(){
+  if(!openDealId)return;const d=deals.find(x=>x.id===openDealId);if(!d)return;
+  const amount=Number(document.getElementById('adjAmount').value),date=document.getElementById('adjDate').value,reason=document.getElementById('adjReason').value.trim();
+  if(!Number.isFinite(amount)||!date||!reason){alert('Enter amount, date and reason.');return}
+  d.adjustments=d.adjustments||[];d.adjustments.push({amount,date,reason});
+  document.getElementById('adjAmount').value='';document.getElementById('adjDate').value=todayKey();document.getElementById('adjReason').value='';
+  persist();renderDealAdjustments();refreshAll();cloudSave();
+}
+function removeDealAdjustment(index){
+  if(!openDealId)return;const d=deals.find(x=>x.id===openDealId);if(!d)return;
+  if(!confirm('Remove this adjustment?'))return;d.adjustments.splice(index,1);persist();renderDealAdjustments();refreshAll();cloudSave();
+}
 function deleteDeal(id){
   if(!confirm('Delete this deal and linked work?'))return;
   deals=deals.filter(d=>d.id!==id);tasks=tasks.filter(t=>t.dealId!==id);persist();refreshAll();cloudSave();
@@ -405,7 +455,7 @@ function renderCommission(){
   populateCommissionMonths();
   const key=document.getElementById('commMonth').value||currentMonthKey(),s=monthStats(key),target=commissionTarget();
   document.getElementById('commEarned').textContent=money(s.earned);document.getElementById('commExpected').textContent=money(s.expected);document.getElementById('commPaid').textContent=money(s.paid);document.getElementById('commOutstanding').textContent=money(Math.max(0,s.expected-s.paid));
-  const boxes=annualMonths().map(k=>{const x=monthStats(k),t=monthTarget(k),status=t===null?'Target not set':x.units>=t?'Target met':(t-x.units)+' to target';return `<div class="monthbox"><h3>${esc(shortMonth(k))} <span class="small">${k}</span></h3><div class="n">${money(x.earned)}</div><div class="l">earned · ${x.units} delivered</div><div class="l" style="margin-top:4px">${esc(status)}</div></div>`}).join('');
+  const boxes=annualMonths().map(k=>{const x=monthStats(k),t=monthTarget(k),status=t===null?'Target not set':x.units>=t?'Target met':(t-x.units)+' to target';return `<div class="monthbox"><h3>${esc(shortMonth(k))} <span class="small">${k}</span></h3><div class="n">${money(x.earned)}</div><div class="l">adjusted earned · ${x.units} delivered</div><div class="l" style="margin-top:3px">gross before scheme reduction: ${money(x.grossEarned)}</div><div class="l" style="margin-top:4px">${esc(status)}</div></div>`}).join('');
   document.getElementById('commissionMonths').innerHTML=boxes;
   const rows=commissionEventRowsForMonth(key);
   document.getElementById('commEvents').innerHTML=rows.length?`<div class="tablewrap"><table class="table"><thead><tr><th>Customer</th><th>Event</th><th>Amount</th><th>Mode</th><th>Eligible</th><th>Expected pay</th><th>Paid</th><th></th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.d.customer)}</td><td>${esc(r.e.label)}</td><td><strong>${money(r.amount)}</strong></td><td><span class="badge ${r.mode==='paid'?'b-green':r.mode==='expected'?'b-blue':'b-gray'}">${r.mode}</span></td><td>${dateLabel(r.e.eligibleDate)}</td><td>${r.e.payMonth?monthLabel(r.e.payMonth):'—'}</td><td>${r.paid?money(r.paid):'—'}</td><td>${r.mode==='expected'?'<button class="btn sm" onclick="openPaymentModal(\''+r.d.id+'\',\''+r.e.id+'\')">Record payment</button>':'<button class="btn sm" onclick="openDealModal(\''+r.d.id+'\')">Open deal</button>'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No eligible/expected/paid commission events recorded for this month.</div>';
@@ -418,7 +468,8 @@ function renderCommission(){
     const newDel=s.newUnits+s.motab;
     if(newDel<t)adj.push(`<div class="task"><div class="task-main"><div class="task-title">20% new-vehicle monthly reduction applies</div><div class="task-meta">${newDel} new-vehicle deliveries vs target ${t}. Current earned commission shown above is before the scheme reduction.</div></div></div>`);
   }
-  document.getElementById('commAdjustments').innerHTML=adj.length?adj.join(''):'<div class="empty">No current commission-risk or adjustment flags.</div>';
+  const reductionNote=s.schemeReduction?'<div class="note" style="margin-top:7px">A '+money(s.schemeReduction)+' 20% new-vehicle target reduction is applied to '+esc(monthLabel(key))+'. Gross commission before the reduction is shown in the month card.</div>':'';
+  document.getElementById('commAdjustments').innerHTML=(adj.length?adj.join(''):'<div class="empty">No current commission-risk or adjustment flags.</div>')+reductionNote;
 }
 
 function renderPerformance(){
@@ -451,12 +502,20 @@ function savePayment(){
 
 function saveMonthTarget(){
   const key=document.getElementById('setTargetMonth').value;if(!key){alert('Choose a month.');return}
-  const val=parseInt(document.getElementById('setMonthTarget').value,10);if(!val||val<1){alert('Enter the actual target for that month.');return}
-  settings.monthTargets=settings.monthTargets||{};settings.monthTargets[key]=val;persist();refreshAll();cloudSave();
+  const combined=document.getElementById('setMonthTarget').value===''?null:parseInt(document.getElementById('setMonthTarget').value,10);
+  const newTarget=document.getElementById('setNewVehicleTarget').value===''?null:parseInt(document.getElementById('setNewVehicleTarget').value,10);
+  if(combined!==null&&(!combined||combined<1)){alert('Enter a valid combined target.');return}
+  if(newTarget!==null&&(!newTarget||newTarget<1)){alert('Enter a valid new-vehicle target.');return}
+  settings.monthTargets=settings.monthTargets||{};settings.newVehicleTargets=settings.newVehicleTargets||{};
+  if(combined===null)delete settings.monthTargets[key];else settings.monthTargets[key]=combined;
+  if(newTarget===null)delete settings.newVehicleTargets[key];else settings.newVehicleTargets[key]=newTarget;
+  persist();refreshAll();cloudSave();
 }
 function clearMonthTarget(){
   const key=document.getElementById('setTargetMonth').value;if(!key)return;
-  if(settings.monthTargets)delete settings.monthTargets[key];persist();refreshAll();cloudSave();
+  if(settings.monthTargets)delete settings.monthTargets[key];
+  if(settings.newVehicleTargets)delete settings.newVehicleTargets[key];
+  persist();refreshAll();cloudSave();
 }
 function saveSettings(){
   settings.basic=Number(document.getElementById('setBasic').value)||20000;
@@ -472,6 +531,7 @@ function loadSettingsUI(){
   document.getElementById('setOtherDed').value=settings.otherDed??0;
   document.getElementById('setTargetMonth').value=currentMonthKey();
   document.getElementById('setMonthTarget').value=monthTarget(currentMonthKey())||'';
+  document.getElementById('setNewVehicleTarget').value=newVehicleTarget(currentMonthKey())||'';
   setTheme(settings.theme||'dark');
 }
 
@@ -490,7 +550,7 @@ function exportCSV(){
 }
 function importData(e){
   const file=e.target.files?.[0];if(!file)return;const r=new FileReader();r.onload=ev=>{
-    try{const x=JSON.parse(ev.target.result);deals=(x.deals||[]).map(migrateDeal);tasks=Array.isArray(x.tasks)?x.tasks:tasks;settings={...settings,...(x.settings||{})};persist();loadSettingsUI();refreshAll();alert('Imported '+deals.length+' deals.')}catch(err){alert('Invalid JSON backup.')}
+    try{const x=JSON.parse(ev.target.result);deals=(x.deals||[]).map(migrateDeal);tasks=Array.isArray(x.tasks)?x.tasks:tasks;settings={...settings,...(x.settings||{})};settings.monthTargets=settings.monthTargets||{};settings.newVehicleTargets=settings.newVehicleTargets||{};persist();loadSettingsUI();refreshAll();alert('Imported '+deals.length+' deals.')}catch(err){alert('Invalid JSON backup.')}
   };r.readAsText(file);
 }
 function clearAll(){deals=[];tasks=[];localStorage.removeItem('ps_deals');localStorage.removeItem('ps_tasks');persist();refreshAll();cloudSave()}
@@ -518,7 +578,7 @@ async function pushToCloud(){
 async function pullFromCloud(silent){
   if(!sb)return;if(!silent)document.getElementById('cloudMsg').textContent='Pulling...';
   try{const {data,error}=await sb.from('deals').select('data').eq('id','state').single();if(error&&error.code!=='PGRST116')throw error;
-    if(data?.data){deals=(data.data.deals||[]).map(migrateDeal);tasks=Array.isArray(data.data.tasks)?data.data.tasks:tasks;settings={...settings,...(data.data.settings||{})};persist();loadSettingsUI();refreshAll();if(!silent)document.getElementById('cloudMsg').textContent='Pulled '+deals.length+' deals / '+tasks.length+' tasks.';setSyncStatus('online','Cloud synced');}
+    if(data?.data){deals=(data.data.deals||[]).map(migrateDeal);tasks=Array.isArray(data.data.tasks)?data.data.tasks:tasks;settings={...settings,...(data.data.settings||{})};settings.monthTargets=settings.monthTargets||{};settings.newVehicleTargets=settings.newVehicleTargets||{};persist();loadSettingsUI();refreshAll();if(!silent)document.getElementById('cloudMsg').textContent='Pulled '+deals.length+' deals / '+tasks.length+' tasks.';setSyncStatus('online','Cloud synced');}
     else if(!silent)document.getElementById('cloudMsg').textContent='No cloud state yet — push to create it.';
   }catch(e){if(!silent)document.getElementById('cloudMsg').textContent='Pull failed: '+(e.message||e);setSyncStatus('error','Sync error');}
 }

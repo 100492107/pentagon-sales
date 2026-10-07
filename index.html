@@ -19,23 +19,10 @@
   --green: #16a34a; --yellow: #ca8a04; --blue: #2563eb; --input-bg: #ffffff;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: var(--bg); color: var(--text); line-height: 1.5; min-height: 100vh;
-}
-header {
-  background: #111; border-bottom: 3px solid var(--red);
-  padding: 0.85rem 1.2rem; display: flex; justify-content: space-between;
-  align-items: center; flex-wrap: wrap; gap: 0.6rem;
-}
-[data-theme="light"] header { background: #111; }
+body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; min-height: 100vh; }
+header { background: #111; border-bottom: 3px solid var(--red); padding: 0.85rem 1.2rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.6rem; }
 .logo-wrap { display: flex; align-items: center; gap: 0.7rem; }
-.logo-mark {
-  width: 40px; height: 40px; background: var(--red);
-  clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 800; font-size: 0.68rem; color: white;
-}
+.logo-mark { width: 40px; height: 40px; background: var(--red); clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 0.68rem; color: white; }
 .logo-text h1 { font-size: 1.1rem; font-weight: 800; color: white; letter-spacing: -0.02em; }
 .logo-text .sub { font-size: 0.65rem; color: #aaa; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
 .header-actions { display: flex; gap: 0.35rem; flex-wrap: wrap; align-items: center; }
@@ -47,14 +34,8 @@ header {
 .grid { display: grid; gap: 0.9rem; }
 .grid-2 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 .grid-3 { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
-.card {
-  background: var(--card); border: 1px solid var(--border);
-  border-radius: 10px; padding: 1.05rem;
-}
-.card h2 {
-  font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em;
-  color: var(--muted); margin-bottom: 0.55rem; font-weight: 600;
-}
+.card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 1.05rem; }
+.card h2 { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin-bottom: 0.55rem; font-weight: 600; }
 .stat { font-size: 1.55rem; font-weight: 800; letter-spacing: -0.02em; }
 .stat.green { color: var(--green); } .stat.yellow { color: var(--yellow); }
 .stat.red { color: var(--red); } .stat.blue { color: var(--blue); }
@@ -63,35 +44,20 @@ header {
 .progress-fill { height: 100%; background: var(--red); border-radius: 3px; transition: width 0.35s ease; }
 .progress-fill.green { background: var(--green); }
 .progress-fill.yellow { background: var(--yellow); }
-.target-box {
-  background: linear-gradient(135deg, rgba(200,16,46,0.08) 0%, var(--card) 100%);
-  border: 1px solid var(--red); border-radius: 10px; padding: 1rem; margin-bottom: 1rem;
-}
+.target-box { background: linear-gradient(135deg, rgba(200,16,46,0.08) 0%, var(--card) 100%); border: 1px solid var(--red); border-radius: 10px; padding: 1rem; margin-bottom: 1rem; }
 .target-box h3 { color: var(--red); font-size: 0.8rem; font-weight: 700; margin-bottom: 0.5rem; text-transform: uppercase; letter-spacing: 0.04em; }
-.insight-box {
-  background: var(--card2); border-left: 3px solid var(--green);
-  border-radius: 0 8px 8px 0; padding: 0.75rem 1rem; margin-bottom: 1rem;
-  font-size: 0.82rem;
-}
+.insight-box { background: var(--card2); border-left: 3px solid var(--green); border-radius: 0 8px 8px 0; padding: 0.75rem 1rem; margin-bottom: 1rem; font-size: 0.82rem; }
 .insight-box strong { color: var(--green); }
 form { display: grid; gap: 0.65rem; }
 label { font-size: 0.72rem; color: var(--muted); display: block; margin-bottom: 0.15rem; font-weight: 500; }
-input, select, textarea {
-  width: 100%; padding: 0.5rem 0.65rem; background: var(--input-bg);
-  border: 1px solid var(--border); border-radius: 7px; color: var(--text);
-  font-size: 0.88rem; font-family: inherit;
-}
+input, select, textarea { width: 100%; padding: 0.5rem 0.65rem; background: var(--input-bg); border: 1px solid var(--border); border-radius: 7px; color: var(--text); font-size: 0.88rem; font-family: inherit; }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--red); }
 .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.65rem; }
 .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.65rem; }
 .checkboxes { display: flex; flex-wrap: wrap; gap: 0.55rem; }
 .checkboxes label { display: flex; align-items: center; gap: 0.3rem; cursor: pointer; color: var(--text); font-size: 0.82rem; }
 .checkboxes input { width: auto; }
-button {
-  padding: 0.55rem 1rem; border: none; border-radius: 7px;
-  font-weight: 600; cursor: pointer; font-size: 0.88rem; font-family: inherit;
-  transition: opacity 0.15s;
-}
+button { padding: 0.55rem 1rem; border: none; border-radius: 7px; font-weight: 600; cursor: pointer; font-size: 0.88rem; font-family: inherit; transition: opacity 0.15s; }
 button:hover { opacity: 0.88; } button:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn-primary { background: var(--red); color: white; }
 .btn-secondary { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
@@ -109,17 +75,11 @@ tr:hover { background: rgba(200,16,46,0.04); }
 .tag-delivery { background: rgba(34,197,94,0.12); color: var(--green); }
 .tag-both { background: rgba(59,130,246,0.12); color: var(--blue); }
 .tabs { display: flex; gap: 0.35rem; margin-bottom: 0.9rem; flex-wrap: wrap; }
-.tab {
-  padding: 0.4rem 0.8rem; background: transparent; border: 1px solid var(--border);
-  border-radius: 7px; color: var(--muted); cursor: pointer; font-weight: 500; font-size: 0.85rem;
-}
+.tab { padding: 0.4rem 0.8rem; background: transparent; border: 1px solid var(--border); border-radius: 7px; color: var(--muted); cursor: pointer; font-weight: 500; font-size: 0.85rem; }
 .tab.active { background: var(--red); border-color: var(--red); color: white; }
 .section { display: none; } .section.active { display: block; }
 .setup-steps { background: var(--card2); border-radius: 8px; padding: 0.9rem; font-size: 0.8rem; color: var(--muted); line-height: 1.65; }
-.hist-row {
-  display: grid; grid-template-columns: 90px 1fr 1fr 1fr; gap: 0.5rem;
-  padding: 0.55rem 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; align-items: center;
-}
+.hist-row { display: grid; grid-template-columns: 90px 1fr 1fr 1fr; gap: 0.5rem; padding: 0.55rem 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; align-items: center; }
 .hist-row.header { color: var(--muted); font-size: 0.65rem; text-transform: uppercase; font-weight: 600; }
 footer { text-align: center; padding: 1.4rem; color: var(--muted); font-size: 0.68rem; border-top: 1px solid var(--border); margin-top: 1.8rem; }
 footer strong { color: var(--red); }
@@ -130,12 +90,7 @@ footer strong { color: var(--red); }
 .fi-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
 .fire { color: #f97316; }
 .crush { color: var(--green); }
-@media (max-width: 600px) {
-  .row, .row-3 { grid-template-columns: 1fr; }
-  .stat { font-size: 1.3rem; }
-  .hist-row { grid-template-columns: 70px 1fr 1fr; }
-  .hist-row .hide-m { display: none; }
-}
+@media (max-width: 600px) { .row, .row-3 { grid-template-columns: 1fr; } .stat { font-size: 1.3rem; } .hist-row { grid-template-columns: 70px 1fr 1fr; } .hist-row .hide-m { display: none; } }
 </style>
 </head>
 <body data-theme="dark">
@@ -156,51 +111,22 @@ footer strong { color: var(--red); }
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
   </div>
 </header>
-
 <div class="container">
   <div class="insight-box" id="insightBox" style="display:none"></div>
-
   <div class="target-box">
     <h3>£3,000 take-home target</h3>
     <div class="grid grid-3" style="gap:0.6rem;">
-      <div>
-        <div class="stat blue" id="grossNeeded">£3,760</div>
-        <div class="label">Gross needed / month</div>
-      </div>
-      <div>
-        <div class="stat yellow" id="commNeeded">£2,093</div>
-        <div class="label">Commission needed</div>
-      </div>
-      <div>
-        <div class="stat" id="takeHomeNow">£0</div>
-        <div class="label">This month take-home (est.)</div>
-      </div>
+      <div><div class="stat blue" id="grossNeeded">£3,760</div><div class="label">Gross needed / month</div></div>
+      <div><div class="stat yellow" id="commNeeded">£2,093</div><div class="label">Commission needed</div></div>
+      <div><div class="stat" id="takeHomeNow">£0</div><div class="label">This month take-home (est.)</div></div>
     </div>
     <div id="pathToTarget" style="margin-top:0.7rem;font-size:0.8rem;color:var(--muted);"></div>
   </div>
-
   <div class="grid grid-3" style="margin-bottom:1rem;">
-    <div class="card">
-      <h2>This Month</h2>
-      <div class="stat green" id="monthComm">£0</div>
-      <div class="label">Commission earned</div>
-      <div class="progress-bar"><div class="progress-fill" id="monthProg" style="width:0%"></div></div>
-      <div class="label" id="monthUnits">0 units</div>
-    </div>
-    <div class="card">
-      <h2>Monthly Unit Target</h2>
-      <div class="stat blue" id="unitTargetStat">0 / 14</div>
-      <div class="label" id="unitTargetLabel">Set your target in Settings</div>
-      <div class="progress-bar"><div class="progress-fill green" id="unitProg" style="width:0%"></div></div>
-    </div>
-    <div class="card">
-      <h2>Year / Annual Bonus</h2>
-      <div class="stat yellow" id="yearUnitsStat">0 / 160</div>
-      <div class="label" id="bonusLabel">Need 160 for £1,000</div>
-      <div class="progress-bar"><div class="progress-fill yellow" id="yearProg" style="width:0%"></div></div>
-    </div>
+    <div class="card"><h2>This Month</h2><div class="stat green" id="monthComm">£0</div><div class="label">Commission earned</div><div class="progress-bar"><div class="progress-fill" id="monthProg" style="width:0%"></div></div><div class="label" id="monthUnits">0 units</div></div>
+    <div class="card"><h2>Monthly Unit Target</h2><div class="stat blue" id="unitTargetStat">0 / 14</div><div class="label" id="unitTargetLabel">Set your target in Settings</div><div class="progress-bar"><div class="progress-fill green" id="unitProg" style="width:0%"></div></div></div>
+    <div class="card"><h2>Year / Annual Bonus</h2><div class="stat yellow" id="yearUnitsStat">0 / 160</div><div class="label" id="bonusLabel">Need 160 for £1,000</div><div class="progress-bar"><div class="progress-fill yellow" id="yearProg" style="width:0%"></div></div></div>
   </div>
-
   <div class="tabs">
     <button class="tab active" data-tab="dash">Dashboard</button>
     <button class="tab" data-tab="add">Add Deal</button>
@@ -211,238 +137,39 @@ footer strong { color: var(--red); }
     <button class="tab" data-tab="cloud">Cloud</button>
     <button class="tab" data-tab="settings">Settings</button>
   </div>
-
   <div class="section active" id="sec-dash">
     <div class="grid grid-2">
-      <div class="card">
-        <h2>This month breakdown</h2>
-        <div id="dashBreakdown" style="font-size:0.85rem;line-height:1.8;color:var(--muted);"></div>
-      </div>
-      <div class="card">
-        <h2>Awaiting delivery</h2>
-        <div id="awaitingList" style="font-size:0.85rem;color:var(--muted);"></div>
-      </div>
+      <div class="card"><h2>This month breakdown</h2><div id="dashBreakdown" style="font-size:0.85rem;line-height:1.8;color:var(--muted);"></div></div>
+      <div class="card"><h2>Awaiting delivery</h2><div id="awaitingList" style="font-size:0.85rem;color:var(--muted);"></div></div>
     </div>
-    <div class="card" style="margin-top:0.9rem;">
-      <h2>This week's pace</h2>
-      <div id="weeklyReminder" style="font-size:0.85rem;color:var(--muted);line-height:1.6;margin-bottom:0.6rem;"></div>
-      <div id="fireNote" style="margin-top:0.5rem;font-size:0.85rem;font-weight:600;"></div>
-    </div>
-    <div class="card" style="margin-top:0.9rem;">
-      <h2>F&amp;I conversion (min 35%)</h2>
-      <div id="fiConversion" style="font-size:0.82rem;"></div>
-    </div>
-    <div class="card" style="margin-top:0.9rem;">
-      <h2>Quick actions</h2>
-      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-        <button class="btn-primary btn-sm" onclick="document.querySelector('[data-tab=add]').click()">+ Add Deal</button>
-        <button class="btn-secondary btn-sm" onclick="document.querySelector('[data-tab=history]').click()">View History</button>
-        <button class="btn-secondary btn-sm" onclick="exportCSV()">Export CSV</button>
-        <button class="btn-secondary btn-sm" onclick="exportPDF()">Month PDF</button>
-      </div>
-    </div>
+    <div class="card" style="margin-top:0.9rem;"><h2>This week's pace</h2><div id="weeklyReminder" style="font-size:0.85rem;color:var(--muted);line-height:1.6;margin-bottom:0.6rem;"></div><div id="fireNote" style="margin-top:0.5rem;font-size:0.85rem;font-weight:600;"></div></div>
+    <div class="card" style="margin-top:0.9rem;"><h2>F&amp;I conversion (min 35%)</h2><div id="fiConversion" style="font-size:0.82rem;"></div></div>
+    <div class="card" style="margin-top:0.9rem;"><h2>Quick actions</h2><div style="display:flex;gap:0.5rem;flex-wrap:wrap;"><button class="btn-primary btn-sm" onclick="document.querySelector('[data-tab=add]').click()">+ Add Deal</button><button class="btn-secondary btn-sm" onclick="document.querySelector('[data-tab=history]').click()">View History</button><button class="btn-secondary btn-sm" onclick="exportCSV()">Export CSV</button><button class="btn-secondary btn-sm" onclick="exportPDF()">Month PDF</button></div></div>
   </div>
-
   <div class="section" id="sec-add">
-    <div class="card">
-      <h2 id="formTitle">Log a Deal</h2>
-      <form id="dealForm">
-        <input type="hidden" id="editId">
-        <div class="row">
-          <div><label>Date</label><input type="date" id="dealDate" required></div>
-          <div><label>Customer / Stock #</label><input type="text" id="dealCustomer" placeholder="e.g. Smith / AB12 CDE"></div>
-        </div>
-        <div class="row">
-          <div>
-            <label>Vehicle Type</label>
-            <select id="dealType">
-              <option value="new-retail">New Retail</option>
-              <option value="new-motab">New Motability</option>
-              <option value="used">Used</option>
-            </select>
-          </div>
-          <div>
-            <label>Status</label>
-            <select id="dealStatus">
-              <option value="order">Order only (awaiting delivery)</option>
-              <option value="delivery">Delivery only</option>
-              <option value="both">Order + Delivery (same month)</option>
-            </select>
-          </div>
-        </div>
-        <div>
-          <label>F&amp;I Products <span style="color:var(--muted)">(GAP removed)</span></label>
-          <div class="checkboxes" id="fiChecks"></div>
-        </div>
-        <div class="row">
-          <div>
-            <label>CSI Score (optional)</label>
-            <input type="number" id="dealCsi" min="0" max="10" step="0.1" placeholder="Only if you know it">
-          </div>
-          <div><label>Notes</label><input type="text" id="dealNotes" placeholder="Optional"></div>
-        </div>
-        <div style="display:flex;gap:0.5rem;margin-top:0.3rem;">
-          <button type="submit" class="btn-primary" id="submitBtn">Add Deal</button>
-          <button type="button" class="btn-secondary" id="cancelEdit" style="display:none" onclick="cancelEdit()">Cancel edit</button>
-        </div>
+    <div class="card"><h2 id="formTitle">Log a Deal</h2>
+      <form id="dealForm"><input type="hidden" id="editId">
+        <div class="row"><div><label>Date</label><input type="date" id="dealDate" required></div><div><label>Customer / Stock #</label><input type="text" id="dealCustomer" placeholder="e.g. Smith / AB12 CDE"></div></div>
+        <div class="row"><div><label>Vehicle Type</label><select id="dealType"><option value="new-retail">New Retail</option><option value="new-motab">New Motability</option><option value="used">Used</option></select></div><div><label>Status</label><select id="dealStatus"><option value="order">Order only (awaiting delivery)</option><option value="delivery">Delivery only</option><option value="both">Order + Delivery (same month)</option></select></div></div>
+        <div><label>F&amp;I Products <span style="color:var(--muted)">(GAP removed)</span></label><div class="checkboxes" id="fiChecks"></div></div>
+        <div class="row"><div><label>CSI Score (optional)</label><input type="number" id="dealCsi" min="0" max="10" step="0.1" placeholder="Only if you know it"></div><div><label>Notes</label><input type="text" id="dealNotes" placeholder="Optional"></div></div>
+        <div style="display:flex;gap:0.5rem;margin-top:0.3rem;"><button type="submit" class="btn-primary" id="submitBtn">Add Deal</button><button type="button" class="btn-secondary" id="cancelEdit" style="display:none" onclick="cancelEdit()">Cancel edit</button></div>
       </form>
     </div>
   </div>
-
-  <div class="section" id="sec-deals">
-    <div class="card">
-      <h2>All Deals <span id="dealCount" style="color:var(--muted);font-weight:400;"></span></h2>
-      <div style="overflow-x:auto;">
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th><th>Customer</th><th>Type</th><th>Status</th><th>F&amp;I</th><th>Comm</th><th></th>
-            </tr>
-          </thead>
-          <tbody id="dealsBody"></tbody>
-        </table>
-      </div>
-      <p id="noDeals" style="color:var(--muted);margin-top:1rem;display:none;">No deals yet.</p>
-    </div>
-  </div>
-
-  <div class="section" id="sec-history">
-    <div class="card">
-      <h2>Monthly History</h2>
-      <div class="hist-row header">
-        <div>Month</div><div>Units</div><div>Commission</div><div class="hide-m">Take-home est.</div>
-      </div>
-      <div id="historyBody"></div>
-      <p id="noHistory" style="color:var(--muted);margin-top:0.8rem;display:none;">Not enough data yet - log a few months of deals.</p>
-    </div>
-    <div class="card" style="margin-top:0.9rem;">
-      <h2>What you did well last month</h2>
-      <div id="lastMonthInsight" style="font-size:0.85rem;color:var(--muted);line-height:1.7;"></div>
-    </div>
-  </div>
-
-  <div class="section" id="sec-model">
-    <div class="card">
-      <h2>What-If Calculator</h2>
-      <p style="color:var(--muted);font-size:0.8rem;margin-bottom:0.8rem;">Hypothetical month - does not change real data.</p>
-      <div class="row-3">
-        <div><label>New Retail</label><input type="number" id="mNewRetail" value="6" min="0"></div>
-        <div><label>New Motability</label><input type="number" id="mNewMotab" value="2" min="0"></div>
-        <div><label>Used</label><input type="number" id="mUsed" value="6" min="0"></div>
-      </div>
-      <div class="row" style="margin-top:0.65rem;">
-        <div><label>Avg F&amp;I per New (£)</label><input type="number" id="mFiNew" value="80" min="0"></div>
-        <div><label>Avg F&amp;I per Used (£)</label><input type="number" id="mFiUsed" value="120" min="0"></div>
-      </div>
-      <button class="btn-green" style="margin-top:0.8rem;" onclick="runModel()">Calculate</button>
-      <div id="modelResult" style="margin-top:1rem;display:none;">
-        <div class="grid grid-3">
-          <div><div class="stat green" id="mVehicle">£0</div><div class="label">Vehicle commission</div></div>
-          <div><div class="stat blue" id="mFi">£0</div><div class="label">F&amp;I commission</div></div>
-          <div><div class="stat yellow" id="mTotal">£0</div><div class="label">Total commission</div></div>
-        </div>
-        <div style="margin-top:0.6rem;">
-          <div class="stat" id="mTakeHome">£0</div>
-          <div class="label">Estimated take-home</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
+  <div class="section" id="sec-deals"><div class="card"><h2>All Deals <span id="dealCount" style="color:var(--muted);font-weight:400;"></span></h2><div style="overflow-x:auto;"><table><thead><tr><th>Date</th><th>Customer</th><th>Type</th><th>Status</th><th>F&amp;I</th><th>Comm</th><th></th></tr></thead><tbody id="dealsBody"></tbody></table></div><p id="noDeals" style="color:var(--muted);margin-top:1rem;display:none;">No deals yet.</p></div></div>
+  <div class="section" id="sec-history"><div class="card"><h2>Monthly History</h2><div class="hist-row header"><div>Month</div><div>Units</div><div>Commission</div><div class="hide-m">Take-home est.</div></div><div id="historyBody"></div><p id="noHistory" style="color:var(--muted);margin-top:0.8rem;display:none;">Not enough data yet.</p></div><div class="card" style="margin-top:0.9rem;"><h2>What you did well last month</h2><div id="lastMonthInsight" style="font-size:0.85rem;color:var(--muted);line-height:1.7;"></div></div></div>
+  <div class="section" id="sec-model"><div class="card"><h2>What-If Calculator</h2><p style="color:var(--muted);font-size:0.8rem;margin-bottom:0.8rem;">Hypothetical month.</p><div class="row-3"><div><label>New Retail</label><input type="number" id="mNewRetail" value="6" min="0"></div><div><label>New Motability</label><input type="number" id="mNewMotab" value="2" min="0"></div><div><label>Used</label><input type="number" id="mUsed" value="6" min="0"></div></div><div class="row" style="margin-top:0.65rem;"><div><label>Avg F&amp;I per New (£)</label><input type="number" id="mFiNew" value="80" min="0"></div><div><label>Avg F&amp;I per Used (£)</label><input type="number" id="mFiUsed" value="120" min="0"></div></div><button class="btn-green" style="margin-top:0.8rem;" onclick="runModel()">Calculate</button><div id="modelResult" style="margin-top:1rem;display:none;"><div class="grid grid-3"><div><div class="stat green" id="mVehicle">£0</div><div class="label">Vehicle commission</div></div><div><div class="stat blue" id="mFi">£0</div><div class="label">F&amp;I commission</div></div><div><div class="stat yellow" id="mTotal">£0</div><div class="label">Total commission</div></div></div><div style="margin-top:0.6rem;"><div class="stat" id="mTakeHome">£0</div><div class="label">Estimated take-home</div></div></div></div></div>
   <div class="section" id="sec-playbook">
-    <div class="card">
-      <h2>60-second recall</h2>
-      <p style="font-size:0.9rem;line-height:1.6;margin-bottom:0.75rem;">
-        <em>"My job is to make it easy to buy. I will welcome well, discover properly, show value, keep the route clear and ask for the next step."</em>
-      </p>
-      <div style="display:flex;flex-wrap:wrap;gap:0.35rem;font-size:0.72rem;font-weight:600;">
-        <span class="tag tag-new">Welcome</span>
-        <span class="tag tag-new">Rapport</span>
-        <span class="tag tag-new">Discovery</span>
-        <span class="tag tag-used">Presentation</span>
-        <span class="tag tag-used">Part Ex</span>
-        <span class="tag tag-used">F&amp;I</span>
-        <span class="tag tag-motab">Test Drive</span>
-        <span class="tag tag-motab">Buy signals</span>
-        <span class="tag tag-motab">Invite</span>
-        <span class="tag tag-order">Next action</span>
-      </div>
-    </div>
-    <div class="card" style="margin-top:0.9rem;">
-      <h2>Jump to</h2>
-      <div style="display:flex;flex-wrap:wrap;gap:0.4rem;">
-        <button class="btn-secondary btn-sm" onclick="showPlay('route')">Full route</button>
-        <button class="btn-secondary btn-sm" onclick="showPlay('discovery')">Discovery</button>
-        <button class="btn-secondary btn-sm" onclick="showPlay('fi')">F&amp;I Buyology</button>
-        <button class="btn-secondary btn-sm" onclick="showPlay('invite')">Invitation to buy</button>
-        <button class="btn-secondary btn-sm" onclick="showPlay('scripts')">Script library</button>
-        <button class="btn-secondary btn-sm" onclick="showPlay('phone')">Phone</button>
-        <button class="btn-secondary btn-sm" onclick="showPlay('video')">Video</button>
-        <button class="btn-secondary btn-sm" onclick="showPlay('check')">Checklists</button>
-      </div>
-    </div>
-    <div class="card" style="margin-top:0.9rem;" id="playContent">
-      <h2>Full sales route</h2>
-      <div style="font-size:0.85rem;line-height:1.75;color:var(--muted);" id="playBody"></div>
-    </div>
+    <div class="card"><h2>60-second recall</h2><p style="font-size:0.9rem;line-height:1.6;margin-bottom:0.75rem;"><em>"My job is to make it easy to buy. I will welcome well, discover properly, show value, keep the route clear and ask for the next step."</em></p><div style="display:flex;flex-wrap:wrap;gap:0.35rem;font-size:0.72rem;font-weight:600;"><span class="tag tag-new">Welcome</span><span class="tag tag-new">Rapport</span><span class="tag tag-new">Discovery</span><span class="tag tag-used">Presentation</span><span class="tag tag-used">Part Ex</span><span class="tag tag-used">F&amp;I</span><span class="tag tag-motab">Test Drive</span><span class="tag tag-motab">Buy signals</span><span class="tag tag-motab">Invite</span><span class="tag tag-order">Next action</span></div></div>
+    <div class="card" style="margin-top:0.9rem;"><h2>Jump to</h2><div style="display:flex;flex-wrap:wrap;gap:0.4rem;"><button class="btn-secondary btn-sm" onclick="showPlay('route')">Full route</button><button class="btn-secondary btn-sm" onclick="showPlay('discovery')">Discovery</button><button class="btn-secondary btn-sm" onclick="showPlay('fi')">F&amp;I Buyology</button><button class="btn-secondary btn-sm" onclick="showPlay('invite')">Invitation to buy</button><button class="btn-secondary btn-sm" onclick="showPlay('scripts')">Script library</button><button class="btn-secondary btn-sm" onclick="showPlay('phone')">Phone</button><button class="btn-secondary btn-sm" onclick="showPlay('video')">Video</button><button class="btn-secondary btn-sm" onclick="showPlay('check')">Checklists</button></div></div>
+    <div class="card" style="margin-top:0.9rem;" id="playContent"><h2>Full sales route</h2><div style="font-size:0.85rem;line-height:1.75;color:var(--muted);" id="playBody"></div></div>
   </div>
-
-  <div class="section" id="sec-cloud">
-    <div class="card">
-      <h2>Cloud Sync (Supabase)</h2>
-      <div class="setup-steps" style="margin-bottom:0.9rem;">
-        Already connected? Keys stay in this browser. Same keys on another device = same data.
-      </div>
-      <div><label>Supabase Project URL</label><input type="text" id="sbUrl" placeholder="https://xxxxx.supabase.co"></div>
-      <div style="margin-top:0.55rem;"><label>Supabase anon (public) key</label><input type="text" id="sbKey" placeholder="eyJ..."></div>
-      <div style="display:flex;gap:0.45rem;margin-top:0.75rem;flex-wrap:wrap;">
-        <button class="btn-primary" onclick="connectSupabase()">Connect</button>
-        <button class="btn-secondary" id="btnPull" onclick="pullFromCloud()" disabled>Pull</button>
-        <button class="btn-secondary" id="btnPush" onclick="pushToCloud()" disabled>Push</button>
-        <button class="btn-secondary btn-sm" onclick="disconnectSupabase()">Disconnect</button>
-      </div>
-      <p id="cloudMsg" style="margin-top:0.65rem;font-size:0.8rem;color:var(--muted);"></p>
-    </div>
-  </div>
-
-  <div class="section" id="sec-settings">
-    <div class="card">
-      <h2>Monthly unit target</h2>
-      <p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.6rem;">Change this each month. Default is ~14.</p>
-      <div class="row">
-        <div>
-          <label>This month's unit target</label>
-          <input type="number" id="setMonthTarget" value="14" min="1" max="50">
-        </div>
-        <div>
-          <label>Month (YYYY-MM)</label>
-          <input type="month" id="setTargetMonth">
-        </div>
-      </div>
-      <button class="btn-primary" style="margin-top:0.7rem;" onclick="saveMonthTarget()">Save month target</button>
-    </div>
-    <div class="card" style="margin-top:0.9rem;">
-      <h2>Pay &amp; tax settings</h2>
-      <div class="row">
-        <div><label>Basic salary (£ / year)</label><input type="number" id="setBasic" value="20000"></div>
-        <div><label>Pension contribution %</label><input type="number" id="setPension" value="0" min="0" max="100" step="0.5"></div>
-      </div>
-      <div class="row" style="margin-top:0.6rem;">
-        <div><label>Other monthly deductions (£)</label><input type="number" id="setOtherDed" value="0" min="0"></div>
-        <div><label>Theme</label>
-          <select id="setTheme" onchange="setTheme(this.value)">
-            <option value="dark">Dark</option>
-            <option value="light">Light</option>
-          </select>
-        </div>
-      </div>
-      <button class="btn-primary" style="margin-top:0.8rem;" onclick="saveSettings()">Save Settings</button>
-      <button class="btn-secondary" style="margin-top:0.8rem;margin-left:0.4rem;" onclick="if(confirm('Clear ALL deals?')){clearDeals()}">Clear All Deals</button>
-    </div>
-  </div>
+  <div class="section" id="sec-cloud"><div class="card"><h2>Cloud Sync (Supabase)</h2><div class="setup-steps" style="margin-bottom:0.9rem;">Keys stay in this browser. Same keys on another device = same data.</div><div><label>Supabase Project URL</label><input type="text" id="sbUrl" placeholder="https://xxxxx.supabase.co"></div><div style="margin-top:0.55rem;"><label>Supabase anon key</label><input type="text" id="sbKey" placeholder="eyJ..."></div><div style="display:flex;gap:0.45rem;margin-top:0.75rem;flex-wrap:wrap;"><button class="btn-primary" onclick="connectSupabase()">Connect</button><button class="btn-secondary" id="btnPull" onclick="pullFromCloud()" disabled>Pull</button><button class="btn-secondary" id="btnPush" onclick="pushToCloud()" disabled>Push</button><button class="btn-secondary btn-sm" onclick="disconnectSupabase()">Disconnect</button></div><p id="cloudMsg" style="margin-top:0.65rem;font-size:0.8rem;color:var(--muted);"></p></div></div>
+  <div class="section" id="sec-settings"><div class="card"><h2>Monthly unit target</h2><p style="font-size:0.8rem;color:var(--muted);margin-bottom:0.6rem;">Change each month.</p><div class="row"><div><label>This month's unit target</label><input type="number" id="setMonthTarget" value="14" min="1" max="50"></div><div><label>Month (YYYY-MM)</label><input type="month" id="setTargetMonth"></div></div><button class="btn-primary" style="margin-top:0.7rem;" onclick="saveMonthTarget()">Save month target</button></div><div class="card" style="margin-top:0.9rem;"><h2>Pay &amp; tax</h2><div class="row"><div><label>Basic salary (£ / year)</label><input type="number" id="setBasic" value="20000"></div><div><label>Pension %</label><input type="number" id="setPension" value="0" min="0" max="100" step="0.5"></div></div><div class="row" style="margin-top:0.6rem;"><div><label>Other monthly deductions (£)</label><input type="number" id="setOtherDed" value="0" min="0"></div><div><label>Theme</label><select id="setTheme" onchange="setTheme(this.value)"><option value="dark">Dark</option><option value="light">Light</option></select></div></div><button class="btn-primary" style="margin-top:0.8rem;" onclick="saveSettings()">Save Settings</button><button class="btn-secondary" style="margin-top:0.8rem;margin-left:0.4rem;" onclick="if(confirm('Clear ALL deals?')){clearDeals()}">Clear All Deals</button></div></div>
 </div>
-
-<footer><strong>Pentagon Motor Group</strong> · Sales Consultant Commission Tracker 2026/27 · Private use only</footer>
+<footer><strong>Pentagon Motor Group</strong> · Commission Tracker 2026/27 · Private use only</footer>
 <script src="app.js"></script>
+<script src="playbook.js"></script>
 </body>
 </html>

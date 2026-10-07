@@ -29,10 +29,10 @@ const ORDER_COMMISSION_START = '2026-07-01';
 let deals = JSON.parse(localStorage.getItem('ps_deals') || '[]');
 let tasks = JSON.parse(localStorage.getItem('ps_tasks') || '[]');
 let settings = JSON.parse(localStorage.getItem('ps_settings') || JSON.stringify({
-  basic:20000, netTarget:3000, pension:0, otherDed:0, theme:'dark', monthTargets:{}, newVehicleTargets:{}
+  basic:20000, netTarget:3000, pension:0, otherDed:0, theme:'dark', monthTargets:{}, newVehicleTargets:{}, naMonths:{}
 }));
 settings.monthTargets=settings.monthTargets||{};
-settings.newVehicleTargets=settings.newVehicleTargets||{};
+settings.newVehicleTargets=settings.newVehicleTargets||{};settings.naMonths=settings.naMonths||{};
 let sb = null;
 let paymentContext = null;
 let openDealId = null;
@@ -110,6 +110,13 @@ function monthTarget(key){
 function newVehicleTarget(key){
   const v=(settings.newVehicleTargets||{})[key];
   return v ? Number(v) : null;
+}
+function monthNA(key){ return !!((settings.naMonths||{})[key]); }
+function toggleMonthNA(key){
+  settings.naMonths=settings.naMonths||{};
+  if(settings.naMonths[key]) delete settings.naMonths[key];
+  else settings.naMonths[key]=true;
+  persist();refreshAll();cloudSave();
 }
 
 function estimateAnnualNet(grossAnnual){
@@ -211,7 +218,7 @@ function monthlyAdjustments(key){
 }
 function schemeReduction(key,rawEarned,newDeliveries){
   const target=newVehicleTarget(key);
-  if(target===null||newDeliveries>=target||rawEarned<=0)return 0;
+  if(monthNA(key)||target===null||newDeliveries>=target||rawEarned<=0)return 0;
   return rawEarned*0.20;
 }
 function monthStatsRaw(key){
@@ -502,7 +509,17 @@ function renderCommission(){
   populateCommissionMonths();
   const key=document.getElementById('commMonth').value||currentMonthKey(),s=monthStats(key),target=commissionTarget();
   document.getElementById('commEarned').textContent=money(s.earned);document.getElementById('commExpected').textContent=money(s.expected);document.getElementById('commPaid').textContent=money(s.paid);document.getElementById('commOutstanding').textContent=money(Math.max(0,s.expected-s.paid));
-  const boxes=annualMonths().map(k=>{const x=monthStats(k),t=monthTarget(k),status=t===null?'Target not set':x.units>=t?'Target met':(t-x.units)+' to target';return `<div class="monthbox"><h3>${esc(shortMonth(k))} <span class="small">${k}</span></h3><div class="n">${money(x.earned)}</div><div class="l">adjusted earned · ${x.units} delivered</div><div class="l" style="margin-top:3px">gross before scheme reduction: ${money(x.grossEarned)}</div><div class="l" style="margin-top:4px">${esc(status)}</div></div>`}).join('');
+  const boxes=annualMonths().map(k=>{
+    const x=monthStats(k),t=monthTarget(k),na=monthNA(k);
+    const status=na?'N/A':t===null?'Target not set':x.units>=t?'Target met':(t-x.units)+' to target';
+    const badgeClass=na?'b-gray':status==='Target met'?'b-green':status==='Target not set'?'b-gray':'b-yellow';
+    return '<div class="monthbox"><h3>'+esc(shortMonth(k))+' <span class="small">'+k+'</span></h3>'+
+      '<div class="n">'+money(x.earned)+'</div>'+
+      '<div class="l">adjusted earned · '+x.units+' delivered</div>'+
+      '<div class="l" style="margin-top:3px">gross before scheme reduction: '+money(x.grossEarned)+'</div>'+
+      '<div class="l" style="margin-top:4px"><span class="badge '+badgeClass+'">'+esc(status)+'</span></div>'+
+      '<button class="btn sm" style="margin-top:7px" onclick="toggleMonthNA(\''+k+'\')">'+(na?'Mark active':'Set N/A')+'</button></div>';
+  }).join('');
   document.getElementById('commissionMonths').innerHTML=boxes;
   const rows=commissionEventRowsForMonth(key);
   document.getElementById('commEvents').innerHTML=rows.length?`<div class="tablewrap"><table class="table"><thead><tr><th>Customer</th><th>Event</th><th>Amount</th><th>Mode</th><th>Eligible</th><th>Expected pay</th><th>Paid</th><th></th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.d.customer)}</td><td>${esc(r.e.label)}</td><td><strong>${money(r.amount)}</strong></td><td><span class="badge ${r.mode==='paid'?'b-green':r.mode==='expected'?'b-blue':'b-gray'}">${r.mode}</span></td><td>${dateLabel(r.e.eligibleDate)}</td><td>${r.e.payMonth?monthLabel(r.e.payMonth):'—'}</td><td>${r.paid?money(r.paid):'—'}</td><td>${r.mode==='expected'?'<button class="btn sm" onclick="openPaymentModal(\''+r.d.id+'\',\''+r.e.id+'\')">Record payment</button>':'<button class="btn sm" onclick="openDealModal(\''+r.d.id+'\')">Open deal</button>'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No eligible/expected/paid commission events recorded for this month.</div>';
@@ -511,7 +528,7 @@ function renderCommission(){
     dealRisk(d).forEach(reason=>adj.push(`<div class="task"><div class="task-main"><div class="task-title">${esc(d.customer||'Unnamed')} · ${esc(reason)}</div><div class="task-meta"><button class="btn sm" onclick="openDealModal('${d.id}')">Open deal</button></div></div></div>`));
     (d.adjustments||[]).filter(a=>monthKey(a.date)===key).forEach(a=>adj.push(`<div class="task"><div class="task-main"><div class="task-title">${esc(d.customer||'Unnamed')} · adjustment ${money(a.amount)}</div><div class="task-meta">${dateLabel(a.date)} · ${esc(a.reason||'')}</div></div></div>`));
   });
-  const t=monthTarget(key);if(t!==null){
+  const t=monthTarget(key);if(!monthNA(key)&&t!==null){
     const newDel=s.newUnits+s.motab;
     if(newDel<t)adj.push(`<div class="task"><div class="task-main"><div class="task-title">20% new-vehicle monthly reduction applies</div><div class="task-meta">${newDel} new-vehicle deliveries vs target ${t}. Current earned commission shown above is before the scheme reduction.</div></div></div>`);
   }
@@ -530,8 +547,10 @@ function renderPerformance(){
   document.getElementById('perfBonus').textContent=money(bonus);
   document.getElementById('perfAvgComm').textContent=units?money(totalComm/units):'—';
   document.getElementById('performanceBody').innerHTML=annualMonths().map(k=>{
-    const s=monthStats(k),t=monthTarget(k),status=t===null?'Not set':s.units>=t?'Met':'Below';
-    return `<tr><td><strong>${esc(monthLabel(k))}</strong></td><td>${t===null?'—':t}</td><td>${s.units}</td><td>${s.newUnits}</td><td>${s.used}</td><td>${s.motab}</td><td>${money(s.earned)}</td><td><span class="badge ${status==='Met'?'b-green':status==='Below'?'b-yellow':'b-gray'}">${esc(status)}</span></td></tr>`;
+    const s=monthStats(k),t=monthTarget(k),na=monthNA(k);
+    const status=na?'N/A':t===null?'Not set':s.units>=t?'Met':'Below';
+    const badgeClass=na?'b-gray':status==='Met'?'b-green':status==='Below'?'b-yellow':'b-gray';
+    return '<tr><td><strong>'+esc(monthLabel(k))+'</strong></td><td>'+((t===null||na)?'—':t)+'</td><td>'+s.units+'</td><td>'+s.newUnits+'</td><td>'+s.used+'</td><td>'+s.motab+'</td><td>'+money(s.earned)+'</td><td><span class="badge '+badgeClass+'">'+esc(status)+'</span> <button class="btn sm" style="margin-left:5px" onclick="toggleMonthNA(\''+k+'\')">'+(na?'Mark active':'Set N/A')+'</button></td></tr>';
   }).join('');
   const risk=[];
   deals.forEach(d=>{dealRisk(d).forEach(r=>{risk.push('<div class="statline"><span>'+esc(d.customer||'Unnamed')+' · '+esc(r)+'</span><button class="btn sm" onclick="openDealModal(\''+d.id+'\')">Open</button></div>');});});
@@ -557,7 +576,7 @@ function saveMonthTarget(){
   const newTarget=document.getElementById('setNewVehicleTarget').value===''?null:parseInt(document.getElementById('setNewVehicleTarget').value,10);
   if(combined!==null&&(!combined||combined<1)){alert('Enter a valid combined target.');return}
   if(newTarget!==null&&(!newTarget||newTarget<1)){alert('Enter a valid new-vehicle target.');return}
-  settings.monthTargets=settings.monthTargets||{};settings.newVehicleTargets=settings.newVehicleTargets||{};
+  settings.monthTargets=settings.monthTargets||{};settings.newVehicleTargets=settings.newVehicleTargets||{};settings.naMonths=settings.naMonths||{};
   if(combined===null)delete settings.monthTargets[key];else settings.monthTargets[key]=combined;
   if(newTarget===null)delete settings.newVehicleTargets[key];else settings.newVehicleTargets[key]=newTarget;
   persist();refreshAll();cloudSave();
@@ -587,7 +606,7 @@ function loadSettingsUI(){
 }
 
 function exportJSON(){
-  const payload={version:7,deals,tasks,settings,exported:new Date().toISOString()};
+  const payload={version:8,deals,tasks,settings,exported:new Date().toISOString()};
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='pentagon-sales-'+todayKey()+'.json';a.click();
 }
 function exportCSV(){
@@ -601,7 +620,7 @@ function exportCSV(){
 }
 function importData(e){
   const file=e.target.files?.[0];if(!file)return;const r=new FileReader();r.onload=ev=>{
-    try{const x=JSON.parse(ev.target.result);deals=(x.deals||[]).map(migrateDeal);tasks=Array.isArray(x.tasks)?x.tasks:tasks;settings={...settings,...(x.settings||{})};settings.monthTargets=settings.monthTargets||{};settings.newVehicleTargets=settings.newVehicleTargets||{};persist();loadSettingsUI();refreshAll();alert('Imported '+deals.length+' deals.')}catch(err){alert('Invalid JSON backup.')}
+    try{const x=JSON.parse(ev.target.result);deals=(x.deals||[]).map(migrateDeal);tasks=Array.isArray(x.tasks)?x.tasks:tasks;settings={...settings,...(x.settings||{})};settings.monthTargets=settings.monthTargets||{};settings.newVehicleTargets=settings.newVehicleTargets||{};settings.naMonths=settings.naMonths||{};persist();loadSettingsUI();refreshAll();alert('Imported '+deals.length+' deals.')}catch(err){alert('Invalid JSON backup.')}
   };r.readAsText(file);
 }
 function clearAll(){deals=[];tasks=[];localStorage.removeItem('ps_deals');localStorage.removeItem('ps_tasks');persist();refreshAll();cloudSave()}
@@ -629,7 +648,7 @@ async function pushToCloud(){
 async function pullFromCloud(silent){
   if(!sb)return;if(!silent)document.getElementById('cloudMsg').textContent='Pulling...';
   try{const {data,error}=await sb.from('deals').select('data').eq('id','state').single();if(error&&error.code!=='PGRST116')throw error;
-    if(data?.data){deals=(data.data.deals||[]).map(migrateDeal);tasks=Array.isArray(data.data.tasks)?data.data.tasks:tasks;settings={...settings,...(data.data.settings||{})};settings.monthTargets=settings.monthTargets||{};settings.newVehicleTargets=settings.newVehicleTargets||{};persist();loadSettingsUI();refreshAll();if(!silent)document.getElementById('cloudMsg').textContent='Pulled '+deals.length+' deals / '+tasks.length+' tasks.';setSyncStatus('online','Cloud synced');}
+    if(data?.data){deals=(data.data.deals||[]).map(migrateDeal);tasks=Array.isArray(data.data.tasks)?data.data.tasks:tasks;settings={...settings,...(data.data.settings||{})};settings.monthTargets=settings.monthTargets||{};settings.newVehicleTargets=settings.newVehicleTargets||{};settings.naMonths=settings.naMonths||{};persist();loadSettingsUI();refreshAll();if(!silent)document.getElementById('cloudMsg').textContent='Pulled '+deals.length+' deals / '+tasks.length+' tasks.';setSyncStatus('online','Cloud synced');}
     else if(!silent)document.getElementById('cloudMsg').textContent='No cloud state yet — push to create it.';
   }catch(e){if(!silent)document.getElementById('cloudMsg').textContent='Pull failed: '+(e.message||e);setSyncStatus('error','Sync error');}
 }

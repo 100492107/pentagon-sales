@@ -6,6 +6,7 @@
 <title>Pentagon Motor Group — Commission Tracker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root {
     --red: #C8102E;
@@ -29,7 +30,6 @@
     line-height: 1.5;
     min-height: 100vh;
   }
-  /* Header — Pentagon style */
   header {
     background: var(--black);
     border-bottom: 3px solid var(--red);
@@ -40,38 +40,24 @@
     flex-wrap: wrap;
     gap: 0.75rem;
   }
-  .logo-wrap {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
+  .logo-wrap { display: flex; align-items: center; gap: 0.75rem; }
   .logo-mark {
-    width: 42px;
-    height: 42px;
+    width: 42px; height: 42px;
     background: var(--red);
     clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-weight: 800;
-    font-size: 0.7rem;
-    color: white;
-    letter-spacing: -0.5px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 800; font-size: 0.7rem; color: white;
   }
-  .logo-text h1 {
-    font-size: 1.15rem;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    color: white;
+  .logo-text h1 { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.02em; color: white; }
+  .logo-text .sub { font-size: 0.7rem; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+  .header-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; }
+  .sync-status {
+    font-size: 0.7rem; padding: 0.25rem 0.55rem; border-radius: 20px;
+    font-weight: 600;
   }
-  .logo-text .sub {
-    font-size: 0.7rem;
-    color: var(--muted);
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
-  .header-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+  .sync-status.online { background: rgba(34,197,94,0.15); color: var(--green); }
+  .sync-status.offline { background: rgba(154,154,154,0.15); color: var(--muted); }
+  .sync-status.error { background: rgba(200,16,46,0.15); color: var(--red); }
   .container { max-width: 1080px; margin: 0 auto; padding: 1.25rem; }
   .grid { display: grid; gap: 1rem; }
   .grid-3 { grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); }
@@ -82,12 +68,8 @@
     padding: 1.15rem;
   }
   .card h2 {
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--muted);
-    margin-bottom: 0.6rem;
-    font-weight: 600;
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted); margin-bottom: 0.6rem; font-weight: 600;
   }
   .stat { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.02em; }
   .stat.green { color: var(--green); }
@@ -95,69 +77,37 @@
   .stat.red { color: var(--red); }
   .stat.blue { color: var(--blue); }
   .label { font-size: 0.72rem; color: var(--muted); margin-top: 0.2rem; }
-  .progress-bar {
-    height: 6px;
-    background: var(--border);
-    border-radius: 3px;
-    overflow: hidden;
-    margin-top: 0.5rem;
-  }
-  .progress-fill {
-    height: 100%;
-    background: var(--red);
-    border-radius: 3px;
-    transition: width 0.35s ease;
-  }
+  .progress-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin-top: 0.5rem; }
+  .progress-fill { height: 100%; background: var(--red); border-radius: 3px; transition: width 0.35s ease; }
   .target-box {
     background: linear-gradient(135deg, #1a0a0c 0%, var(--card) 100%);
     border: 1px solid var(--red);
-    border-radius: 10px;
-    padding: 1.1rem;
-    margin-bottom: 1.1rem;
+    border-radius: 10px; padding: 1.1rem; margin-bottom: 1.1rem;
   }
   .target-box h3 {
-    color: var(--red);
-    font-size: 0.85rem;
-    font-weight: 700;
-    margin-bottom: 0.6rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    color: var(--red); font-size: 0.85rem; font-weight: 700;
+    margin-bottom: 0.6rem; text-transform: uppercase; letter-spacing: 0.04em;
   }
   form { display: grid; gap: 0.7rem; }
   label { font-size: 0.75rem; color: var(--muted); display: block; margin-bottom: 0.2rem; font-weight: 500; }
   input, select, textarea {
-    width: 100%;
-    padding: 0.55rem 0.7rem;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    color: var(--text);
-    font-size: 0.9rem;
-    font-family: inherit;
+    width: 100%; padding: 0.55rem 0.7rem;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 7px; color: var(--text); font-size: 0.9rem; font-family: inherit;
   }
-  input:focus, select:focus, textarea:focus {
-    outline: none;
-    border-color: var(--red);
-  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--red); }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
   .row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0.7rem; }
   .checkboxes { display: flex; flex-wrap: wrap; gap: 0.65rem; }
-  .checkboxes label {
-    display: flex; align-items: center; gap: 0.35rem;
-    cursor: pointer; color: var(--text); font-size: 0.85rem;
-  }
+  .checkboxes label { display: flex; align-items: center; gap: 0.35rem; cursor: pointer; color: var(--text); font-size: 0.85rem; }
   .checkboxes input { width: auto; }
   button {
-    padding: 0.6rem 1.1rem;
-    border: none;
-    border-radius: 7px;
-    font-weight: 600;
-    cursor: pointer;
-    font-size: 0.9rem;
-    font-family: inherit;
+    padding: 0.6rem 1.1rem; border: none; border-radius: 7px;
+    font-weight: 600; cursor: pointer; font-size: 0.9rem; font-family: inherit;
     transition: opacity 0.15s;
   }
   button:hover { opacity: 0.88; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
   .btn-primary { background: var(--red); color: white; }
   .btn-secondary { background: var(--card2); color: var(--text); border: 1px solid var(--border); }
   .btn-green { background: var(--green); color: #0a0a0a; }
@@ -166,59 +116,36 @@
   th, td { padding: 0.55rem 0.45rem; text-align: left; border-bottom: 1px solid var(--border); }
   th { color: var(--muted); font-weight: 600; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; }
   tr:hover { background: rgba(200,16,46,0.05); }
-  .tag {
-    display: inline-block;
-    padding: 0.12rem 0.45rem;
-    border-radius: 4px;
-    font-size: 0.68rem;
-    font-weight: 700;
-  }
+  .tag { display: inline-block; padding: 0.12rem 0.45rem; border-radius: 4px; font-size: 0.68rem; font-weight: 700; }
   .tag-new { background: rgba(59,130,246,0.15); color: var(--blue); }
   .tag-used { background: rgba(34,197,94,0.15); color: var(--green); }
   .tag-motab { background: rgba(234,179,8,0.15); color: var(--yellow); }
   .tabs { display: flex; gap: 0.4rem; margin-bottom: 1rem; flex-wrap: wrap; }
   .tab {
-    padding: 0.45rem 0.9rem;
-    background: transparent;
-    border: 1px solid var(--border);
-    border-radius: 7px;
-    color: var(--muted);
-    cursor: pointer;
-    font-weight: 500;
+    padding: 0.45rem 0.9rem; background: transparent; border: 1px solid var(--border);
+    border-radius: 7px; color: var(--muted); cursor: pointer; font-weight: 500;
   }
   .tab.active { background: var(--red); border-color: var(--red); color: white; }
   .section { display: none; }
   .section.active { display: block; }
-  .sync-box {
-    background: var(--card2);
-    border: 1px dashed var(--border);
-    border-radius: 8px;
-    padding: 1rem;
-    margin-top: 1rem;
+  .setup-steps {
+    background: var(--card2); border-radius: 8px; padding: 1rem;
+    font-size: 0.82rem; color: var(--muted); line-height: 1.7;
   }
-  .sync-box h3 { font-size: 0.8rem; margin-bottom: 0.5rem; color: var(--yellow); }
-  .sync-box p { font-size: 0.78rem; color: var(--muted); margin-bottom: 0.6rem; }
-  textarea.sync-area {
-    min-height: 80px;
-    font-family: ui-monospace, monospace;
-    font-size: 0.72rem;
+  .setup-steps ol { padding-left: 1.2rem; }
+  .setup-steps strong { color: var(--text); }
+  .setup-steps code {
+    background: var(--bg); padding: 0.1rem 0.35rem; border-radius: 4px;
+    font-size: 0.75rem; color: var(--yellow);
   }
   .accuracy-note {
-    font-size: 0.72rem;
-    color: var(--muted);
-    margin-top: 0.75rem;
-    padding: 0.6rem;
-    background: var(--bg);
-    border-radius: 6px;
+    font-size: 0.72rem; color: var(--muted); margin-top: 0.75rem;
+    padding: 0.6rem; background: var(--bg); border-radius: 6px;
     border-left: 3px solid var(--red);
   }
   footer {
-    text-align: center;
-    padding: 1.5rem;
-    color: var(--muted);
-    font-size: 0.7rem;
-    border-top: 1px solid var(--border);
-    margin-top: 2rem;
+    text-align: center; padding: 1.5rem; color: var(--muted);
+    font-size: 0.7rem; border-top: 1px solid var(--border); margin-top: 2rem;
   }
   footer strong { color: var(--red); }
   @media (max-width: 600px) {
@@ -237,6 +164,7 @@
     </div>
   </div>
   <div class="header-actions">
+    <span class="sync-status offline" id="syncStatus">Local only</span>
     <button class="btn-secondary btn-sm" onclick="exportData()">Export</button>
     <button class="btn-secondary btn-sm" onclick="document.getElementById('importFile').click()">Import</button>
     <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
@@ -244,7 +172,6 @@
 </header>
 
 <div class="container">
-  <!-- Target -->
   <div class="target-box">
     <h3>£3,000 take-home target</h3>
     <div class="grid grid-3" style="gap:0.7rem;">
@@ -263,7 +190,6 @@
     </div>
   </div>
 
-  <!-- Summary -->
   <div class="grid grid-3" style="margin-bottom:1.1rem;">
     <div class="card">
       <h2>This Month</h2>
@@ -290,7 +216,7 @@
     <button class="tab active" data-tab="add">Add Deal</button>
     <button class="tab" data-tab="deals">Deals</button>
     <button class="tab" data-tab="model">What-If</button>
-    <button class="tab" data-tab="sync">Sync Devices</button>
+    <button class="tab" data-tab="cloud">Cloud Sync</button>
     <button class="tab" data-tab="settings">Settings</button>
   </div>
 
@@ -328,7 +254,7 @@
           </div>
         </div>
         <div>
-          <label>F&amp;I Products <span style="color:var(--muted)">(GAP removed as requested)</span></label>
+          <label>F&amp;I Products <span style="color:var(--muted)">(GAP removed)</span></label>
           <div class="checkboxes" id="fiChecks"></div>
         </div>
         <div class="row">
@@ -354,13 +280,7 @@
         <table>
           <thead>
             <tr>
-              <th>Date</th>
-              <th>Customer</th>
-              <th>Type</th>
-              <th>Status</th>
-              <th>F&amp;I</th>
-              <th>Comm</th>
-              <th></th>
+              <th>Date</th><th>Customer</th><th>Type</th><th>Status</th><th>F&amp;I</th><th>Comm</th><th></th>
             </tr>
           </thead>
           <tbody id="dealsBody"></tbody>
@@ -399,30 +319,52 @@
     </div>
   </div>
 
-  <!-- SYNC -->
-  <div class="section" id="sec-sync">
+  <!-- CLOUD SYNC -->
+  <div class="section" id="sec-cloud">
     <div class="card">
-      <h2>Multi-device Sync</h2>
-      <p style="color:var(--muted);font-size:0.82rem;margin-bottom:0.8rem;">
-        Data is stored in this browser only. To use on phone, tablet or another PC:
-      </p>
-      <ol style="color:var(--muted);font-size:0.8rem;padding-left:1.2rem;margin-bottom:1rem;line-height:1.7;">
-        <li>On this device click <strong style="color:var(--text)">Copy Sync Data</strong> below</li>
-        <li>Open the same tracker URL on the other device</li>
-        <li>Paste into the box and click <strong style="color:var(--text)">Load Sync Data</strong></li>
-      </ol>
-      <p style="color:var(--muted);font-size:0.78rem;margin-bottom:0.6rem;">
-        Tip: save the exported JSON to iCloud / Google Drive / Notes so you always have a backup.
-      </p>
-      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.8rem;">
-        <button class="btn-primary btn-sm" onclick="copySync()">Copy Sync Data</button>
-        <button class="btn-secondary btn-sm" onclick="exportData()">Download JSON file</button>
+      <h2>Cloud Sync (Supabase)</h2>
+      <div class="setup-steps" id="setupGuide">
+        <p style="margin-bottom:0.6rem;"><strong>One-time setup (takes ~3 minutes):</strong></p>
+        <ol>
+          <li>Go to <a href="https://supabase.com" target="_blank" style="color:var(--blue);">supabase.com</a> and create a free account</li>
+          <li>Click <strong>New Project</strong> → name it anything (e.g. "pentagon-tracker") → set a database password → create</li>
+          <li>Once ready, go to <strong>SQL Editor</strong> → New query → paste this and click Run:</li>
+        </ol>
+        <pre style="background:var(--bg);padding:0.7rem;border-radius:6px;font-size:0.72rem;overflow-x:auto;margin:0.6rem 0;color:var(--yellow);">create table deals (
+  id text primary key,
+  data jsonb not null,
+  updated_at timestamptz default now()
+);
+
+-- Allow full access with the anon key (private personal use)
+alter table deals enable row level security;
+create policy "Allow all" on deals for all using (true) with check (true);</pre>
+        <ol start="4">
+          <li>Go to <strong>Project Settings → API</strong></li>
+          <li>Copy the <strong>Project URL</strong> and the <strong>anon public</strong> key</li>
+          <li>Paste them below and click <strong>Connect</strong></li>
+        </ol>
       </div>
-      <label>Paste sync data here</label>
-      <textarea class="sync-area" id="syncPaste" placeholder="Paste the full JSON here…"></textarea>
-      <button class="btn-green" style="margin-top:0.6rem;" onclick="loadSync()">Load Sync Data</button>
-      <div class="accuracy-note" style="margin-top:1rem;">
-        <strong>Note:</strong> There is no cloud account. The copy/paste method is the most reliable way to keep phone, showroom PC and home laptop in sync without a login.
+
+      <div style="margin-top:1rem;">
+        <label>Supabase Project URL</label>
+        <input type="text" id="sbUrl" placeholder="https://xxxxx.supabase.co">
+      </div>
+      <div style="margin-top:0.6rem;">
+        <label>Supabase anon (public) key</label>
+        <input type="text" id="sbKey" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+      </div>
+      <div style="display:flex;gap:0.5rem;margin-top:0.8rem;flex-wrap:wrap;">
+        <button class="btn-primary" id="btnConnect" onclick="connectSupabase()">Connect</button>
+        <button class="btn-secondary" id="btnPull" onclick="pullFromCloud()" disabled>Pull from cloud</button>
+        <button class="btn-secondary" id="btnPush" onclick="pushToCloud()" disabled>Push to cloud</button>
+        <button class="btn-secondary btn-sm" onclick="disconnectSupabase()">Disconnect</button>
+      </div>
+      <p id="cloudMsg" style="margin-top:0.7rem;font-size:0.8rem;color:var(--muted);"></p>
+      <div class="accuracy-note">
+        Once connected, every deal you add or delete is saved to the cloud automatically.
+        Open the same tracker on your phone or another PC and it will load the same data.
+        Your keys stay in this browser only — they are never sent anywhere except Supabase.
       </div>
     </div>
   </div>
@@ -454,9 +396,8 @@
       <button class="btn-primary" style="margin-top:0.9rem;" onclick="saveSettings()">Save Settings</button>
       <button class="btn-secondary" style="margin-top:0.9rem;margin-left:0.4rem;" onclick="if(confirm('Clear ALL deals?')){clearDeals()}">Clear All Deals</button>
     </div>
-
     <div class="card" style="margin-top:1rem;">
-      <h2>Scheme Reference — taken from your signed 2026/27 documents</h2>
+      <h2>Scheme Reference — from your signed 2026/27 documents</h2>
       <table>
         <tr><th>Type</th><th>Order</th><th>Delivery</th></tr>
         <tr><td>New Retail</td><td>£40</td><td>£40</td></tr>
@@ -464,13 +405,14 @@
         <tr><td>Used</td><td>—</td><td>£60</td></tr>
       </table>
       <p style="margin-top:0.7rem;font-size:0.8rem;color:var(--muted);">
-        <strong>F&amp;I New:</strong> Finance £10 · Paint £35 · Refresh £35 · Warranty £35 · Motab Care Pack £25<br>
-        <strong>F&amp;I Used:</strong> Finance £60 · Paint £30 · Refresh £30 · Warranty £30 · Assurance Upgrade £10<br>
-        <strong>GAP:</strong> deliberately removed at your request<br>
-        <strong>Annual bonus:</strong> 160=£1,000 · 200=£2,000 · 240=£4,000 (subject to CSI 9+ and EV mix)
+        <strong>F&amp;I New:</strong> Finance £10 · Paint/Refresh/Warranty £35 · Care Pack £25<br>
+        <strong>F&amp;I Used:</strong> Finance £60 · Paint/Refresh/Warranty £30 · Assurance £10<br>
+        <strong>GAP:</strong> removed at your request<br>
+        <strong>Annual bonus:</strong> 160=£1k · 200=£2k · 240=£4k
       </p>
       <div class="accuracy-note">
-        <strong>Accuracy check:</strong> All rates match your signed "Sales Consultants New and Used Combined Bonus Scheme 2026" and contract (£20k basic, 160-unit annual target, OTE £41,005–£50,000). CSI &lt; 8 triggers full commission clawback. Mystery shop (±£150) and the 20% new-car volume reduction are not auto-applied — adjust manually if needed. Take-home is an estimate using 2026/27 England tax/NI bands; actual payslip may differ slightly with tax code, student loan, etc.
+        Rates match your signed scheme and contract. CSI &lt; 8 = full clawback.
+        Take-home is an estimate (2026/27 England tax/NI). Mystery shop and 20% new-car reduction are manual.
       </div>
     </div>
   </div>
@@ -500,22 +442,149 @@ const FI_LABELS = {
 
 let deals = JSON.parse(localStorage.getItem('ps_deals') || '[]');
 let settings = JSON.parse(localStorage.getItem('ps_settings') || '{"basic":20000,"pension":0,"taxYearStart":7,"otherDed":0}');
+let sb = null; // supabase client
 
+// ===== SUPABASE =====
+function getSbCreds() {
+  return {
+    url: localStorage.getItem('ps_sb_url') || '',
+    key: localStorage.getItem('ps_sb_key') || ''
+  };
+}
+
+function setSyncStatus(state, text) {
+  const el = document.getElementById('syncStatus');
+  el.className = 'sync-status ' + state;
+  el.textContent = text;
+}
+
+function initSupabase() {
+  const { url, key } = getSbCreds();
+  if (!url || !key) {
+    setSyncStatus('offline', 'Local only');
+    document.getElementById('btnPull').disabled = true;
+    document.getElementById('btnPush').disabled = true;
+    return;
+  }
+  document.getElementById('sbUrl').value = url;
+  document.getElementById('sbKey').value = key;
+  try {
+    sb = supabase.createClient(url, key);
+    setSyncStatus('online', 'Cloud connected');
+    document.getElementById('btnPull').disabled = false;
+    document.getElementById('btnPush').disabled = false;
+    // Auto-pull on load
+    pullFromCloud(true);
+  } catch (e) {
+    setSyncStatus('error', 'Cloud error');
+    sb = null;
+  }
+}
+
+async function connectSupabase() {
+  const url = document.getElementById('sbUrl').value.trim();
+  const key = document.getElementById('sbKey').value.trim();
+  if (!url || !key) {
+    document.getElementById('cloudMsg').textContent = 'Please enter both URL and key.';
+    return;
+  }
+  localStorage.setItem('ps_sb_url', url);
+  localStorage.setItem('ps_sb_key', key);
+  document.getElementById('cloudMsg').textContent = 'Connecting…';
+  try {
+    sb = supabase.createClient(url, key);
+    // Test by selecting
+    const { error } = await sb.from('deals').select('id').limit(1);
+    if (error) throw error;
+    setSyncStatus('online', 'Cloud connected');
+    document.getElementById('btnPull').disabled = false;
+    document.getElementById('btnPush').disabled = false;
+    document.getElementById('cloudMsg').textContent = 'Connected successfully. Pulling latest data…';
+    await pullFromCloud();
+  } catch (e) {
+    setSyncStatus('error', 'Cloud error');
+    document.getElementById('cloudMsg').textContent = 'Connection failed: ' + (e.message || e) + '. Check the SQL table was created and keys are correct.';
+    sb = null;
+  }
+}
+
+function disconnectSupabase() {
+  localStorage.removeItem('ps_sb_url');
+  localStorage.removeItem('ps_sb_key');
+  sb = null;
+  document.getElementById('sbUrl').value = '';
+  document.getElementById('sbKey').value = '';
+  setSyncStatus('offline', 'Local only');
+  document.getElementById('btnPull').disabled = true;
+  document.getElementById('btnPush').disabled = true;
+  document.getElementById('cloudMsg').textContent = 'Disconnected. Data stays in this browser only.';
+}
+
+async function pushToCloud() {
+  if (!sb) return;
+  document.getElementById('cloudMsg').textContent = 'Pushing…';
+  try {
+    // Upsert all deals as one row with id = 'all'
+    // Plus individual rows for safety
+    const payload = {
+      id: 'state',
+      data: { deals, settings, updated: new Date().toISOString() },
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await sb.from('deals').upsert(payload);
+    if (error) throw error;
+    document.getElementById('cloudMsg').textContent = 'Pushed ' + deals.length + ' deals to cloud.';
+    setSyncStatus('online', 'Cloud synced');
+  } catch (e) {
+    document.getElementById('cloudMsg').textContent = 'Push failed: ' + (e.message || e);
+    setSyncStatus('error', 'Sync error');
+  }
+}
+
+async function pullFromCloud(silent) {
+  if (!sb) return;
+  if (!silent) document.getElementById('cloudMsg').textContent = 'Pulling…';
+  try {
+    const { data, error } = await sb.from('deals').select('data').eq('id', 'state').single();
+    if (error && error.code !== 'PGRST116') throw error; // PGRST116 = no rows
+    if (data && data.data) {
+      if (data.data.deals) deals = data.data.deals;
+      if (data.data.settings) settings = data.data.settings;
+      localStorage.setItem('ps_deals', JSON.stringify(deals));
+      localStorage.setItem('ps_settings', JSON.stringify(settings));
+      loadSettingsUI();
+      updateSummary();
+      renderDeals();
+      if (!silent) document.getElementById('cloudMsg').textContent = 'Pulled ' + deals.length + ' deals from cloud.';
+      setSyncStatus('online', 'Cloud synced');
+    } else {
+      if (!silent) document.getElementById('cloudMsg').textContent = 'No cloud data yet. Push your current deals to create it.';
+    }
+  } catch (e) {
+    if (!silent) document.getElementById('cloudMsg').textContent = 'Pull failed: ' + (e.message || e);
+    setSyncStatus('error', 'Sync error');
+  }
+}
+
+async function cloudSaveDeal() {
+  // Auto-push after any change when connected
+  if (sb) await pushToCloud();
+}
+
+// ===== TAX & COMMISSION (unchanged logic) =====
 function estimateTakeHome(grossAnnual) {
   const pa = 12570, basicLimit = 50270, higherLimit = 125140;
   let taxable = Math.max(0, grossAnnual - pa), tax = 0;
   if (taxable > 0) { const b = Math.min(taxable, basicLimit - pa); tax += b * 0.20; taxable -= b; }
   if (taxable > 0) { const h = Math.min(taxable, higherLimit - basicLimit); tax += h * 0.40; taxable -= h; }
   if (taxable > 0) tax += taxable * 0.45;
-  const niPrimary = 12570, niUpper = 50270;
   let ni = 0;
-  if (grossAnnual > niPrimary) ni += (Math.min(grossAnnual, niUpper) - niPrimary) * 0.08;
-  if (grossAnnual > niUpper) ni += (grossAnnual - niUpper) * 0.02;
+  if (grossAnnual > 12570) ni += (Math.min(grossAnnual, 50270) - 12570) * 0.08;
+  if (grossAnnual > 50270) ni += (grossAnnual - 50270) * 0.02;
   const pension = (settings.pension / 100) * grossAnnual;
   const other = (settings.otherDed || 0) * 12;
   return Math.max(0, grossAnnual - tax - ni - pension - other);
 }
-
 function calcGrossForTakeHome(targetMonthly) {
   let low = targetMonthly * 12, high = targetMonthly * 12 * 1.6;
   for (let i = 0; i < 30; i++) {
@@ -524,7 +593,6 @@ function calcGrossForTakeHome(targetMonthly) {
   }
   return Math.round((low + high) / 2);
 }
-
 function calcDealComm(d) {
   const v = SCHEME.vehicle[d.type] || { order: 0, delivery: 0 };
   let vehicle = 0;
@@ -544,7 +612,6 @@ function renderFiChecks() {
     `<label><input type="checkbox" name="fi" value="${k}"> ${FI_LABELS[k] || k} (£${products[k]})</label>`
   ).join('');
 }
-
 function getMonthKey(dateStr) {
   const d = new Date(dateStr);
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
@@ -570,7 +637,6 @@ function updateSummary() {
   document.getElementById('yearComm').textContent = '£' + yearComm.toLocaleString();
   document.getElementById('yearUnits').textContent = yearUnits + ' / 160 units';
   document.getElementById('yearProg').style.width = Math.min(100, (yearUnits / 160) * 100) + '%';
-
   let bonus = 0, bonusLabel = 'Need 160 for £1,000';
   if (yearUnits >= 240) { bonus = 4000; bonusLabel = '240+ achieved'; }
   else if (yearUnits >= 200) { bonus = 2000; bonusLabel = '200 achieved — next 240 for £4k'; }
@@ -578,13 +644,11 @@ function updateSummary() {
   else bonusLabel = 'Need ' + (160 - yearUnits) + ' more for £1,000';
   document.getElementById('annualBonus').textContent = '£' + bonus.toLocaleString();
   document.getElementById('bonusLabel').textContent = bonusLabel;
-
   const basicMonthly = (settings.basic || 20000) / 12;
   const th = estimateTakeHome((basicMonthly + monthComm) * 12) / 12;
   const thEl = document.getElementById('takeHomeNow');
   thEl.textContent = '£' + Math.round(th).toLocaleString();
   thEl.className = 'stat ' + (th >= 3000 ? 'green' : th >= 2500 ? 'yellow' : 'red');
-
   const grossNeeded = calcGrossForTakeHome(3000);
   const basic = settings.basic || 20000;
   const commNeeded = Math.max(0, Math.round(grossNeeded / 12 - basic / 12));
@@ -609,7 +673,7 @@ function renderDeals() {
   }).join('');
 }
 
-function addDeal(e) {
+async function addDeal(e) {
   e.preventDefault();
   const fi = [...document.querySelectorAll('input[name="fi"]:checked')].map(c => c.value);
   deals.push({
@@ -629,20 +693,23 @@ function addDeal(e) {
   updateSummary();
   renderDeals();
   document.querySelector('[data-tab="deals"]').click();
+  await cloudSaveDeal();
 }
 
-function deleteDeal(id) {
+async function deleteDeal(id) {
   if (!confirm('Delete this deal?')) return;
   deals = deals.filter(d => d.id !== id);
   localStorage.setItem('ps_deals', JSON.stringify(deals));
   updateSummary();
   renderDeals();
+  await cloudSaveDeal();
 }
-function clearDeals() {
+async function clearDeals() {
   deals = [];
   localStorage.setItem('ps_deals', '[]');
   updateSummary();
   renderDeals();
+  await cloudSaveDeal();
 }
 function saveSettings() {
   settings.basic = parseFloat(document.getElementById('setBasic').value) || 20000;
@@ -651,6 +718,7 @@ function saveSettings() {
   settings.otherDed = parseFloat(document.getElementById('setOtherDed').value) || 0;
   localStorage.setItem('ps_settings', JSON.stringify(settings));
   updateSummary();
+  cloudSaveDeal();
   alert('Settings saved');
 }
 function runModel() {
@@ -672,7 +740,7 @@ function runModel() {
   document.getElementById('modelResult').style.display = 'block';
 }
 function exportData() {
-  const data = { deals, settings, exported: new Date().toISOString(), version: 2 };
+  const data = { deals, settings, exported: new Date().toISOString(), version: 3 };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -683,7 +751,7 @@ function importData(e) {
   const file = e.target.files[0];
   if (!file) return;
   const reader = new FileReader();
-  reader.onload = ev => {
+  reader.onload = async ev => {
     try {
       const data = JSON.parse(ev.target.result);
       if (data.deals) deals = data.deals;
@@ -691,29 +759,11 @@ function importData(e) {
       localStorage.setItem('ps_deals', JSON.stringify(deals));
       localStorage.setItem('ps_settings', JSON.stringify(settings));
       loadSettingsUI(); updateSummary(); renderDeals();
-      alert('Import successful — ' + deals.length + ' deals loaded');
+      await cloudSaveDeal();
+      alert('Import successful — ' + deals.length + ' deals');
     } catch (err) { alert('Invalid JSON file'); }
   };
   reader.readAsText(file);
-}
-function copySync() {
-  const data = JSON.stringify({ deals, settings, exported: new Date().toISOString(), version: 2 });
-  navigator.clipboard.writeText(data).then(() => alert('Sync data copied to clipboard. Paste it on your other device.')).catch(() => {
-    document.getElementById('syncPaste').value = data;
-    alert('Could not copy automatically — data is now in the paste box. Select all and copy manually.');
-  });
-}
-function loadSync() {
-  try {
-    const data = JSON.parse(document.getElementById('syncPaste').value.trim());
-    if (data.deals) deals = data.deals;
-    if (data.settings) settings = data.settings;
-    localStorage.setItem('ps_deals', JSON.stringify(deals));
-    localStorage.setItem('ps_settings', JSON.stringify(settings));
-    loadSettingsUI(); updateSummary(); renderDeals();
-    alert('Sync loaded — ' + deals.length + ' deals');
-    document.getElementById('syncPaste').value = '';
-  } catch (err) { alert('Invalid sync data — make sure you pasted the full JSON'); }
 }
 function loadSettingsUI() {
   document.getElementById('setBasic').value = settings.basic || 20000;
@@ -738,6 +788,7 @@ renderFiChecks();
 loadSettingsUI();
 updateSummary();
 renderDeals();
+initSupabase();
 </script>
 </body>
 </html>

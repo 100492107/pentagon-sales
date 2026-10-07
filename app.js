@@ -385,18 +385,27 @@ function renderDealEventsInModal(){
   if(!openDealId){document.getElementById('dealEvents').innerHTML='<div class="note">Save the deal first, then commission events and payment tracking appear here.</div>';return;}
   const d=deals.find(x=>x.id===openDealId);if(!d)return;
   const events=eventDefs(d);
-  document.getElementById('dealEvents').innerHTML=events.length?events.map(e=>{
+  const wrap=document.getElementById('dealEvents');
+  if(!events.length){wrap.innerHTML='<div class="empty">No commission event can be calculated from the information recorded yet.</div>';return;}
+  wrap.innerHTML=events.map(e=>{
     const eligible=eligibleEvent(d,e),p=paymentFor(d,e.id),remaining=Math.max(0,eligible-eventPaid(d,e));
     let status='Potential';
     if(eligible)status=remaining>0?'Eligible / awaiting payment':'Paid / recorded';
     if(d.csi!==null&&d.csi<8)status='At risk — CSI';
-    if(e.kind==='fi'&&e.kind==='fi'&&!e.eligibleDate)status='Sold / waiting qualification';
-    return `<div class="event"><div class="eventline"><div class="eventtitle">${esc(e.label)}</div><strong>${money(e.amount)}</strong></div>
-      <div class="eventmeta">Eligible: ${dateLabel(e.eligibleDate)} · Expected pay: ${e.payMonth?monthLabel(e.payMonth):'Not yet known'} · ${esc(e.requires)}</div>
-      <div class="toolbar" style="margin-top:6px"><span class="badge ${remaining>0&&eligible?'b-yellow':eligible?'b-green':'b-gray'}">${esc(status)}</span><span class="small">Paid ${money(p.amount||0)} ${p.date?'on '+dateLabel(p.date):''}</span>${remaining>0?'<button class="btn sm" onclick="openPaymentModal(''+d.id+'',''+e.id+'')">Record payment</button>':''}</div>
-      ${p.note?'<div class="small" style="margin-top:4px">'+esc(p.note)+'</div>':''}
-    </div>`;
-  }).join(''):'<div class="empty">No commission event can be calculated from the information recorded yet.</div>';
+    if(e.kind==='fi'&&!e.eligibleDate)status='Sold / waiting qualification';
+    const payButton=remaining>0
+      ? '<button class="btn sm" data-pay-deal="'+esc(d.id)+'" data-pay-event="'+esc(e.id)+'">Record payment</button>'
+      : '';
+    return '<div class="event"><div class="eventline"><div class="eventtitle">'+esc(e.label)+'</div><strong>'+money(e.amount)+'</strong></div>'+
+      '<div class="eventmeta">Eligible: '+dateLabel(e.eligibleDate)+' · Expected pay: '+(e.payMonth?monthLabel(e.payMonth):'Not yet known')+' · '+esc(e.requires)+'</div>'+
+      '<div class="toolbar" style="margin-top:6px"><span class="badge '+(remaining>0&&eligible?'b-yellow':eligible?'b-green':'b-gray')+'">'+esc(status)+'</span>'+
+      '<span class="small">Paid '+money(p.amount||0)+' '+(p.date?'on '+dateLabel(p.date):'')+'</span>'+payButton+'</div>'+
+      (p.note?'<div class="small" style="margin-top:4px">'+esc(p.note)+'</div>':'')+
+      '</div>';
+  }).join('');
+  wrap.querySelectorAll('[data-pay-deal]').forEach(btn=>{
+    btn.addEventListener('click',()=>openPaymentModal(btn.dataset.payDeal,btn.dataset.payEvent));
+  });
 }
 function renderDealDiary(){
   if(!openDealId)return;const d=deals.find(x=>x.id===openDealId);if(!d)return;

@@ -18,9 +18,13 @@ const STAGE_LABELS = {
   lead:'Lead', quoted:'Quoted', 'test-drive':'Test drive', ordered:'Ordered',
   'awaiting-delivery':'Awaiting delivery', delivered:'Delivered', lost:'Lost / cancelled'
 };
-const ANNUAL_START = '2026-07-01';
-const ANNUAL_END   = '2027-06-30';
 const ANNUAL_TARGET = 160;
+// Personal annual tracker follows the user's January-to-January calendar period.
+// Display is January–December for the current calendar year.
+const ANNUAL_YEAR = new Date().getFullYear();
+const ANNUAL_START = ANNUAL_YEAR+'-01-01';
+const ANNUAL_END   = ANNUAL_YEAR+'-12-31';
+const ORDER_COMMISSION_START = '2026-07-01';
 
 let deals = JSON.parse(localStorage.getItem('ps_deals') || '[]');
 let tasks = JSON.parse(localStorage.getItem('ps_tasks') || '[]');
@@ -46,7 +50,7 @@ function shortMonth(key){ if(!/^\d{4}-\d{2}$/.test(key)) return '—'; const [y,
 function dateLabel(s){ return s ? parseDate(s).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '—'; }
 function currentMonthKey(){ return monthKey(todayKey()); }
 function previousMonthKey(){ const d=new Date(); d.setMonth(d.getMonth()-1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
-function annualMonths(){ const out=[]; const d=new Date(2026,6,1); for(let i=0;i<12;i++){ out.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')); d.setMonth(d.getMonth()+1); } return out; }
+function annualMonths(){ const out=[]; const d=new Date(ANNUAL_YEAR,0,1,12); for(let i=0;i<12;i++){ out.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')); d.setMonth(d.getMonth()+1); } return out; }
 
 function persist(){
   localStorage.setItem('ps_deals', JSON.stringify(deals));
@@ -94,7 +98,9 @@ function setTheme(t){
 function toggleTheme(){ setTheme(document.body.getAttribute('data-theme')==='dark'?'light':'dark'); }
 
 function annualEligibleDeals(){
-  return deals.filter(d=>d.deliveryDate && d.deliveryDate>=ANNUAL_START && d.deliveryDate<=ANNUAL_END && d.stage!=='lost');
+  // A delivery is a delivered unit for performance purposes. Do not remove a
+  // historical delivery just because a later note/stage is changed.
+  return deals.filter(d=>d.deliveryDate && d.deliveryDate>=ANNUAL_START && d.deliveryDate<=ANNUAL_END);
 }
 function monthDeals(key){ return deals.filter(d=>monthKey(d.deliveryDate)===key || monthKey(d.orderDate)===key); }
 function monthTarget(key){
@@ -140,13 +146,39 @@ function commissionTarget(){
 function eventDefs(d){
   const out=[];
   const v=SCHEME.vehicle[d.type]||{order:0,delivery:0};
-  if(d.type!=='used' && d.orderDate) out.push({id:'order',kind:'order',label:'Order commission',amount:v.order,eligibleDate:d.deliveryDate||'',payMonth:d.deliveryDate?monthAfter(monthKey(d.deliveryDate)):'',requires:'Delivery + compliant deal file'});
-  if(d.deliveryDate) out.push({id:'delivery',kind:'delivery',label:d.type==='used'?'Used delivery commission':'Vehicle delivery commission',amount:v.delivery,eligibleDate:d.deliveryDate,payMonth:monthAfter(monthKey(d.deliveryDate)),requires:'Delivery + compliant deal file'});
+
+  // New vehicle order/invoice commission is a separate event from delivery.
+  // Under the current 2026/27 scheme, the £40/£30 order payment applies to
+  // orders taken from 1 July onwards. It is tracked in the month of the
+  // order/invoice, with the one-month-in-arrears payroll view handled here.
+  if(d.type!=='used' && d.orderDate && d.orderDate>=ORDER_COMMISSION_START && v.order>0){
+    out.push({
+      id:'order',kind:'order',label:'Order / invoice commission',amount:v.order,
+      eligibleDate:d.orderDate,payMonth:monthAfter(monthKey(d.orderDate)),
+      requires:'Order / invoice + compliant deal file'
+    });
+  }
+
+  // All new and used delivery commission is a separate delivery event.
+  if(d.deliveryDate){
+    out.push({
+      id:'delivery',kind:'delivery',
+      label:d.type==='used'?'Used delivery commission':'Vehicle delivery commission',
+      amount:v.delivery,eligibleDate:d.deliveryDate,payMonth:monthAfter(monthKey(d.deliveryDate)),
+      requires:'Delivery + compliant deal file'
+    });
+  }
+
   const products=SCHEME.fi[d.type]||{};
   (d.fi||[]).forEach(k=>{
     const amount=products[k]; if(!amount)return;
     const earnedDate=k==='finance' ? d.financePayoutDate : d.deliveryDate;
-    out.push({id:'fi:'+k,kind:'fi',label:FI_LABELS[k]||k,amount,eligibleDate:earnedDate||'',payMonth:earnedDate?monthAfter(monthKey(earnedDate)):'',requires:k==='finance'?'Finance company payout confirmation':'Delivery + compliant deal file'});
+    out.push({
+      id:'fi:'+k,kind:'fi',label:FI_LABELS[k]||k,amount,
+      eligibleDate:earnedDate||'',
+      payMonth:earnedDate?monthAfter(monthKey(earnedDate)):'',
+      requires:k==='finance'?'Finance company payout confirmation':'Delivery + compliant deal file'
+    });
   });
   return out;
 }
@@ -156,16 +188,21 @@ function paymentFor(d,eventId){
 }
 function dealRisk(d){
   const reasons=[];
-  if(d.csi!==null && d.csi<8) reasons.push('CSI below 8: full deal commission is at risk / subject to debit back.');
-  if(d.stage==='lost' && d.orderDate) reasons.push('Cancelled/lost after order: any order commission previously paid may be debited back.');
+  if(d.csi!==null && d.csi<8) reasons.push('CSI below 8: full commission on this deal is at risk / subject to debit back.');
+  if(d.stage==='lost' && eventPaid(d,{id:'order'})) reasons.push('Order commission was previously recorded as paid; record any actual debit-back separately if it appears on payroll.');
   if((d.fi||[]).includes('finance') && !d.financePayoutDate && d.deliveryDate) reasons.push('Finance payout confirmation not recorded.');
-  if(d.deliveryDate && d.stage!=='lost' && d.journal && !d.nextAction && tasks.filter(t=>t.dealId===d.id&&!t.done).length===0) reasons.push('No next action or open task recorded.');
+  if(d.deliveryDate && d.stage!=='lost' && !d.nextAction && tasks.filter(t=>t.dealId===d.id&&!t.done).length===0) reasons.push('No next action or open task recorded.');
   return reasons;
 }
 function eligibleEvent(d,e){
   if(!e.amount || !e.eligibleDate) return 0;
-  if(d.stage==='lost') return 0;
-  if(d.csi!==null && d.csi<8) return 0;
+  // Do not erase a commission event from history merely because the current
+  // deal stage later changes to lost or a CSI issue is recorded. If it was
+  // already paid, the historical event stays visible and any actual debit-back
+  // is entered as a separate adjustment. For unpaid cancelled/failed events,
+  // do not project the commission as payable.
+  if(d.stage==='lost' && eventPaid(d,e)===0) return 0;
+  if(d.csi!==null && d.csi<8 && eventPaid(d,e)===0) return 0;
   return e.amount;
 }
 function eventPaid(d,e){ return Math.max(0,Number(paymentFor(d,e.id).amount)||0); }
@@ -240,7 +277,7 @@ function renderSummary(){
   const next=monthStats(payMonthForCurrent());
   document.getElementById('dashExpected').textContent=money(next.expected);
   document.getElementById('dashExpectedSub').textContent=monthLabel(next.key)+' payslip view';
-  document.getElementById('dashPaid').textContent=money(prev.paid);
+  document.getElementById('dashPaid').textContent=money(s.paid);
   const openTasks=tasks.filter(t=>!t.done);
   const overdue=openTasks.filter(t=>t.due && t.due<todayKey()).length;
   document.getElementById('dashWork').textContent=String(openTasks.length);
@@ -395,7 +432,7 @@ function saveDeal(e){
     vehicle:document.getElementById('fVehicle').value.trim(),stock:document.getElementById('fStock').value.trim(),type:document.getElementById('fType').value,stage:document.getElementById('fStage').value,
     leadDate:document.getElementById('fLeadDate').value,orderDate:document.getElementById('fOrderDate').value,expectedDeliveryDate:document.getElementById('fExpectedDelivery').value,deliveryDate:document.getElementById('fDeliveryDate').value,financePayoutDate:document.getElementById('fFinancePayout').value,
     fi,csi:document.getElementById('fCSI').value===''?null:Number(document.getElementById('fCSI').value),px:document.getElementById('fPx').value.trim(),nextAction:document.getElementById('fNextAction').value.trim(),
-    journal:old?.journal||[],adjustments:old?.adjustments||[],payments:old?.payments||[]
+    journal:old?.journal||[],adjustments:old?.adjustments||[],payments:old?.payments||{}
   };
   if(!old && d.leadDate)d.journal.push({id:uid('note'),date:d.leadDate,text:'Deal created.'});
   const i=deals.findIndex(x=>x.id===id);if(i>=0)deals[i]=d;else deals.push(d);
@@ -473,7 +510,11 @@ function renderCommission(){
 }
 
 function renderPerformance(){
-  const ds=annualEligibleDeals(),units=ds.length,totalComm=ds.reduce((s,d)=>s+eventDefs(d).reduce((x,e)=>x+eligibleEvent(d,e),0),0),bonus=units>=240?4000:units>=200?2000:units>=160?1000:0;
+  const ds=annualEligibleDeals(),units=ds.length;
+  const totalComm=ds.reduce((sum,d)=>sum+eventDefs(d).reduce((x,e)=>{
+    return x+(e.eligibleDate&&e.eligibleDate>=ANNUAL_START&&e.eligibleDate<=ANNUAL_END?eligibleEvent(d,e):0);
+  },0),0);
+  const bonus=units>=240?4000:units>=200?2000:units>=160?1000:0;
   document.getElementById('perfAnnualUnits').textContent=units+' / '+ANNUAL_TARGET;document.getElementById('perfAnnualBar').style.width=Math.min(100,units/ANNUAL_TARGET*100)+'%';
   document.getElementById('perfPace').textContent=(ANNUAL_TARGET/12).toFixed(1);
   document.getElementById('perfBonus').textContent=money(bonus);
@@ -540,11 +581,11 @@ function exportJSON(){
   const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='pentagon-sales-'+todayKey()+'.json';a.click();
 }
 function exportCSV(){
-  const headers=['Customer','Phone','Email','Vehicle','Stock/Reg','Type','Stage','Lead Date','Order Date','Expected Delivery','Delivery Date','Finance Payout','F&I','Earned Commission','Expected Next Pay','CSI','Notes'];
+  const headers=['Customer','Phone','Email','Vehicle','Stock/Reg','Type','Stage','Lead Date','Order / Invoice Date','Expected Delivery','Delivery Date','Finance Payout','F&I','Earned Commission','Expected Next Pay','CSI','Notes'];
   const rows=deals.map(d=>{
     const ev=eventDefs(d),earned=ev.reduce((s,e)=>s+eligibleEvent(d,e),0),expected=ev.reduce((s,e)=>s+(e.payMonth===payMonthForCurrent()?Math.max(0,eligibleEvent(d,e)-eventPaid(d,e)):0),0);
     const note=(d.journal||[]).map(x=>x.text).join(' | ');
-    return [d.customer,d.phone,d.email,d.vehicle,d.stock,STAGE_LABELS[d.stage]||d.stage,d.stage,d.leadDate,d.orderDate,d.expectedDeliveryDate,d.deliveryDate,d.financePayoutDate,(d.fi||[]).map(k=>FI_LABELS[k]).join('; '),earned,expected,d.csi??'',note].map(x=>'"'+String(x??'').replace(/"/g,'""')+'"').join(',');
+    return [d.customer,d.phone,d.email,d.vehicle,d.stock,d.type,STAGE_LABELS[d.stage]||d.stage,d.leadDate,d.orderDate,d.expectedDeliveryDate,d.deliveryDate,d.financePayoutDate,(d.fi||[]).map(k=>FI_LABELS[k]).join('; '),earned,expected,d.csi??'',note].map(x=>'"'+String(x??'').replace(/"/g,'""')+'"').join(',');
   });
   const blob=new Blob([[headers.join(','),...rows].join('\n')],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='pentagon-sales-deals-'+todayKey()+'.csv';a.click();
 }

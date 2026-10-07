@@ -11,502 +11,532 @@ const SCHEME = {
   }
 };
 const FI_LABELS = {
-  finance: 'Finance', paint: 'Paint', refresh: 'Refresh',
-  warranty: 'Warranty', carepack: 'Motab Care Pack', assurance: 'Assurance Upgrade'
+  finance:'Finance', paint:'Paint', refresh:'Refresh', warranty:'Warranty',
+  carepack:'Motability Care Pack', assurance:'Assurance Upgrade'
 };
+const STAGE_LABELS = {
+  lead:'Lead', quoted:'Quoted', 'test-drive':'Test drive', ordered:'Ordered',
+  'awaiting-delivery':'Awaiting delivery', delivered:'Delivered', lost:'Lost / cancelled'
+};
+const ANNUAL_START = '2026-07-01';
+const ANNUAL_END   = '2027-06-30';
+const ANNUAL_TARGET = 160;
 
 let deals = JSON.parse(localStorage.getItem('ps_deals') || '[]');
+let tasks = JSON.parse(localStorage.getItem('ps_tasks') || '[]');
 let settings = JSON.parse(localStorage.getItem('ps_settings') || JSON.stringify({
-  basic: 20000, pension: 0, otherDed: 0, theme: 'dark', monthTargets: {}
+  basic:20000, netTarget:3000, pension:0, otherDed:0, theme:'dark', monthTargets:{}
 }));
 let sb = null;
+let paymentContext = null;
+let openDealId = null;
 
-function setTheme(t) {
-  document.body.setAttribute('data-theme', t);
-  settings.theme = t;
-  const btn = document.getElementById('themeBtn');
-  if (btn) btn.textContent = t === 'dark' ? 'Light' : 'Dark';
-  const sel = document.getElementById('setTheme');
-  if (sel) sel.value = t;
+function uid(prefix='id'){ return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+function esc(v){ return String(v ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
+function money(n){ return '£' + Math.round(Number(n)||0).toLocaleString('en-GB'); }
+function money2(n){ return '£' + Number(n||0).toLocaleString('en-GB',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function todayKey(){ return new Date().toISOString().slice(0,10); }
+function parseDate(s){ return s ? new Date(s + 'T12:00:00') : null; }
+function monthKey(dateStr){ const d=parseDate(dateStr); if(!d || isNaN(d)) return ''; return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function monthAfter(key){ if(!/^\d{4}-\d{2}$/.test(key)) return ''; const [y,m]=key.split('-').map(Number); return new Date(y,m,1).toISOString().slice(0,7); }
+function monthLabel(key){ if(!/^\d{4}-\d{2}$/.test(key)) return '—'; const [y,m]=key.split('-').map(Number); return new Date(y,m-1,1).toLocaleString('en-GB',{month:'long',year:'numeric'}); }
+function shortMonth(key){ if(!/^\d{4}-\d{2}$/.test(key)) return '—'; const [y,m]=key.split('-').map(Number); return new Date(y,m-1,1).toLocaleString('en-GB',{month:'short'}); }
+function dateLabel(s){ return s ? parseDate(s).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '—'; }
+function currentMonthKey(){ return monthKey(todayKey()); }
+function previousMonthKey(){ const d=new Date(); d.setMonth(d.getMonth()-1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
+function annualMonths(){ const out=[]; const d=new Date(2026,6,1); for(let i=0;i<12;i++){ out.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')); d.setMonth(d.getMonth()+1); } return out; }
+
+function persist(){
+  localStorage.setItem('ps_deals', JSON.stringify(deals));
+  localStorage.setItem('ps_tasks', JSON.stringify(tasks));
   localStorage.setItem('ps_settings', JSON.stringify(settings));
 }
-function toggleTheme() {
-  setTheme(document.body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+function normalizeStage(d){
+  if(d.stage) return d.stage;
+  if(d.status==='lead') return 'lead';
+  if(d.status==='order') return 'ordered';
+  if(d.status==='delivery' || d.status==='both') return d.deliveryDate ? 'delivered' : 'awaiting-delivery';
+  return 'lead';
+}
+function migrateDeal(d){
+  const x={...d};
+  x.id=x.id||uid('deal');
+  x.customer=x.customer||'';
+  x.phone=x.phone||'';
+  x.email=x.email||'';
+  x.vehicle=x.vehicle||'';
+  x.stock=x.stock||'';
+  x.type=x.type||'new-retail';
+  x.stage=normalizeStage(x);
+  x.leadDate=x.leadDate||x.date||'';
+  x.orderDate=x.orderDate || ((x.status==='order'||x.status==='both') ? x.date : '');
+  x.deliveryDate=x.deliveryDate || ((x.status==='delivery'||x.status==='both') ? x.date : '');
+  x.expectedDeliveryDate=x.expectedDeliveryDate||'';
+  x.financePayoutDate=x.financePayoutDate||'';
+  x.csi=(x.csi!==undefined && x.csi!==null && x.csi!=='') ? Number(x.csi) : null;
+  x.px=x.px||'';
+  x.nextAction=x.nextAction||'';
+  x.fi=Array.isArray(x.fi)?x.fi:[];
+  x.journal=Array.isArray(x.journal)?x.journal:(x.notes?[{id:uid('note'),date:x.leadDate||todayKey(),text:x.notes}]:[]);
+  x.adjustments=Array.isArray(x.adjustments)?x.adjustments:[];
+  x.payments=x.payments && typeof x.payments==='object' ? x.payments : {};
+  return x;
+}
+deals=deals.map(migrateDeal);
+
+function setTheme(t){
+  settings.theme=t; document.body.setAttribute('data-theme',t);
+  const b=document.getElementById('themeBtn'); if(b)b.textContent=t==='dark'?'Light':'Dark';
+  localStorage.setItem('ps_settings',JSON.stringify(settings));
+}
+function toggleTheme(){ setTheme(document.body.getAttribute('data-theme')==='dark'?'light':'dark'); }
+
+function annualEligibleDeals(){
+  return deals.filter(d=>d.deliveryDate && d.deliveryDate>=ANNUAL_START && d.deliveryDate<=ANNUAL_END && d.stage!=='lost');
+}
+function monthDeals(key){ return deals.filter(d=>monthKey(d.deliveryDate)===key || monthKey(d.orderDate)===key); }
+function monthTarget(key){
+  const v=(settings.monthTargets||{})[key];
+  return v ? Number(v) : null;
 }
 
-function getSbCreds() {
-  return { url: localStorage.getItem('ps_sb_url') || '', key: localStorage.getItem('ps_sb_key') || '' };
+function estimateAnnualNet(grossAnnual){
+  const gross=Math.max(0,Number(grossAnnual)||0);
+  const pensionRate=Math.max(0,Number(settings.pension)||0)/100;
+  const pension=gross*pensionRate;
+  let taxableBase=Math.max(0,gross-pension);
+  let pa=12570;
+  if(taxableBase>100000) pa=Math.max(0,12570-(taxableBase-100000)/2);
+  let taxable=Math.max(0,taxableBase-pa);
+  const basic=Math.min(taxable,37700);
+  taxable-=basic;
+  const higher=Math.min(taxable,125140-50270);
+  taxable-=higher;
+  const additional=Math.max(0,taxable);
+  const tax=basic*.20+higher*.40+additional*.45;
+  const niBase=Math.max(0,gross-pension);
+  const ni8=Math.max(0,Math.min(niBase,50270)-12570)*.08;
+  const ni2=Math.max(0,niBase-50270)*.02;
+  return Math.max(0,gross-pension-tax-ni8-ni2-(Number(settings.otherDed)||0)*12);
 }
-function setSyncStatus(state, text) {
-  const el = document.getElementById('syncStatus');
-  if (!el) return;
-  el.className = 'sync-status ' + state;
-  el.textContent = text;
+function grossForNet(targetMonthly){
+  let lo=Math.max(1,targetMonthly*12),hi=Math.max(hiForTarget(targetMonthly),60000);
+  for(let i=0;i<60;i++){ const mid=(lo+hi)/2; if(estimateAnnualNet(mid)/12<targetMonthly)lo=mid;else hi=mid; }
+  return Math.round(hi);
 }
-function initSupabase() {
-  const { url, key } = getSbCreds();
-  if (!url || !key) { setSyncStatus('offline', 'Local only'); return; }
-  const u = document.getElementById('sbUrl');
-  const k = document.getElementById('sbKey');
-  if (u) u.value = url;
-  if (k) k.value = key;
-  try {
-    sb = supabase.createClient(url, key);
-    setSyncStatus('online', 'Cloud connected');
-    const bp = document.getElementById('btnPull');
-    const bpush = document.getElementById('btnPush');
-    if (bp) bp.disabled = false;
-    if (bpush) bpush.disabled = false;
-    pullFromCloud(true);
-  } catch (e) { setSyncStatus('error', 'Cloud error'); sb = null; }
+function hiForTarget(t){ return t*12*2; }
+function commissionTarget(){
+  const grossMonth=grossForNet(Number(settings.netTarget)||3000)/12;
+  const basicMonth=(Number(settings.basic)||20000)/12;
+  return Math.max(0,Math.round(grossMonth-basicMonth));
 }
-async function connectSupabase() {
-  const url = document.getElementById('sbUrl').value.trim();
-  const key = document.getElementById('sbKey').value.trim();
-  if (!url || !key) { document.getElementById('cloudMsg').textContent = 'Enter URL and key.'; return; }
-  localStorage.setItem('ps_sb_url', url);
-  localStorage.setItem('ps_sb_key', key);
-  document.getElementById('cloudMsg').textContent = 'Connecting...';
-  try {
-    sb = supabase.createClient(url, key);
-    const { error } = await sb.from('deals').select('id').limit(1);
-    if (error) throw error;
-    setSyncStatus('online', 'Cloud connected');
-    document.getElementById('btnPull').disabled = false;
-    document.getElementById('btnPush').disabled = false;
-    document.getElementById('cloudMsg').textContent = 'Connected. Pulling...';
-    await pullFromCloud();
-  } catch (e) {
-    setSyncStatus('error', 'Cloud error');
-    document.getElementById('cloudMsg').textContent = 'Failed: ' + (e.message || e);
-    sb = null;
-  }
+
+function eventDefs(d){
+  const out=[];
+  const v=SCHEME.vehicle[d.type]||{order:0,delivery:0};
+  if(d.type!=='used' && d.orderDate) out.push({id:'order',kind:'order',label:'Order commission',amount:v.order,eligibleDate:d.deliveryDate||'',payMonth:d.deliveryDate?monthAfter(monthKey(d.deliveryDate)):'',requires:'Delivery + compliant deal file'});
+  if(d.deliveryDate) out.push({id:'delivery',kind:'delivery',label:d.type==='used'?'Used delivery commission':'Vehicle delivery commission',amount:v.delivery,eligibleDate:d.deliveryDate,payMonth:monthAfter(monthKey(d.deliveryDate)),requires:'Delivery + compliant deal file'});
+  const products=SCHEME.fi[d.type]||{};
+  (d.fi||[]).forEach(k=>{
+    const amount=products[k]; if(!amount)return;
+    const earnedDate=k==='finance' ? d.financePayoutDate : d.deliveryDate;
+    out.push({id:'fi:'+k,kind:'fi',label:FI_LABELS[k]||k,amount,eligibleDate:earnedDate||'',payMonth:earnedDate?monthAfter(monthKey(earnedDate)):'',requires:k==='finance'?'Finance company payout confirmation':'Delivery + compliant deal file'});
+  });
+  return out;
 }
-function disconnectSupabase() {
-  localStorage.removeItem('ps_sb_url');
-  localStorage.removeItem('ps_sb_key');
-  sb = null;
-  document.getElementById('sbUrl').value = '';
-  document.getElementById('sbKey').value = '';
-  setSyncStatus('offline', 'Local only');
-  document.getElementById('btnPull').disabled = true;
-  document.getElementById('btnPush').disabled = true;
-  document.getElementById('cloudMsg').textContent = 'Disconnected.';
+function paymentFor(d,eventId){
+  const p=d.payments && d.payments[eventId];
+  return p && typeof p==='object' ? p : {amount:0,date:'',note:''};
 }
-async function pushToCloud() {
-  if (!sb) return;
-  document.getElementById('cloudMsg').textContent = 'Pushing...';
-  try {
-    const { error } = await sb.from('deals').upsert({
-      id: 'state',
-      data: { deals, settings, updated: new Date().toISOString() },
-      updated_at: new Date().toISOString()
+function dealRisk(d){
+  const reasons=[];
+  if(d.csi!==null && d.csi<8) reasons.push('CSI below 8: full deal commission is at risk / subject to debit back.');
+  if(d.stage==='lost' && d.orderDate) reasons.push('Cancelled/lost after order: any order commission previously paid may be debited back.');
+  if((d.fi||[]).includes('finance') && !d.financePayoutDate && d.deliveryDate) reasons.push('Finance payout confirmation not recorded.');
+  if(d.deliveryDate && d.stage!=='lost' && d.journal && !d.nextAction && tasks.filter(t=>t.dealId===d.id&&!t.done).length===0) reasons.push('No next action or open task recorded.');
+  return reasons;
+}
+function eligibleEvent(d,e){
+  if(!e.amount || !e.eligibleDate) return 0;
+  if(d.stage==='lost') return 0;
+  if(d.csi!==null && d.csi<8) return 0;
+  return e.amount;
+}
+function eventPaid(d,e){ return Math.max(0,Number(paymentFor(d,e.id).amount)||0); }
+function monthlyAdjustments(key){
+  return deals.reduce((sum,d)=>(d.adjustments||[]).reduce((s,a)=>monthKey(a.date)===key?s+Number(a.amount||0):s, sum),0);
+}
+function monthStats(key){
+  let earned=0,expected=0,paid=0,units=0,newUnits=0,used=0,motab=0;
+  const expectedEvents=[];
+  annualEligibleDeals().forEach(d=>{
+    if(monthKey(d.deliveryDate)===key){
+      units++; if(d.type==='used')used++;else if(d.type==='new-motab')motab++;else newUnits++;
+    }
+  });
+  deals.forEach(d=>{
+    eventDefs(d).forEach(e=>{
+      const el=eligibleEvent(d,e);
+      if(e.eligibleDate && monthKey(e.eligibleDate)===key) earned+=el;
+      if(e.payMonth===key){
+        const paidAlready=eventPaid(d,e);
+        const remaining=Math.max(0,el-paidAlready);
+        if(remaining>0){expected+=remaining;expectedEvents.push({d,e,remaining});}
+      }
+      const p=paymentFor(d,e);
+      if(p.date && monthKey(p.date)===key) paid+=Number(p.amount)||0;
     });
-    if (error) throw error;
-    document.getElementById('cloudMsg').textContent = 'Pushed ' + deals.length + ' deals.';
-    setSyncStatus('online', 'Cloud synced');
-  } catch (e) {
-    document.getElementById('cloudMsg').textContent = 'Push failed: ' + (e.message || e);
-    setSyncStatus('error', 'Sync error');
-  }
-}
-async function pullFromCloud(silent) {
-  if (!sb) return;
-  if (!silent) document.getElementById('cloudMsg').textContent = 'Pulling...';
-  try {
-    const { data, error } = await sb.from('deals').select('data').eq('id', 'state').single();
-    if (error && error.code !== 'PGRST116') throw error;
-    if (data && data.data) {
-      if (data.data.deals) deals = data.data.deals;
-      if (data.data.settings) settings = { ...settings, ...data.data.settings };
-      localStorage.setItem('ps_deals', JSON.stringify(deals));
-      localStorage.setItem('ps_settings', JSON.stringify(settings));
-      loadSettingsUI(); refreshAll();
-      if (!silent) document.getElementById('cloudMsg').textContent = 'Pulled ' + deals.length + ' deals.';
-      setSyncStatus('online', 'Cloud synced');
-    } else if (!silent) document.getElementById('cloudMsg').textContent = 'No cloud data yet - push to create it.';
-  } catch (e) {
-    if (!silent) document.getElementById('cloudMsg').textContent = 'Pull failed: ' + (e.message || e);
-    setSyncStatus('error', 'Sync error');
-  }
-}
-async function cloudSave() { if (sb) await pushToCloud(); }
-
-function estimateTakeHome(grossAnnual) {
-  const pa = 12570, basicLimit = 50270, higherLimit = 125140;
-  let taxable = Math.max(0, grossAnnual - pa), tax = 0;
-  if (taxable > 0) { const b = Math.min(taxable, basicLimit - pa); tax += b * 0.20; taxable -= b; }
-  if (taxable > 0) { const h = Math.min(taxable, higherLimit - basicLimit); tax += h * 0.40; taxable -= h; }
-  if (taxable > 0) tax += taxable * 0.45;
-  let ni = 0;
-  if (grossAnnual > 12570) ni += (Math.min(grossAnnual, 50270) - 12570) * 0.08;
-  if (grossAnnual > 50270) ni += (grossAnnual - 50270) * 0.02;
-  return Math.max(0, grossAnnual - tax - ni - (settings.pension/100)*grossAnnual - (settings.otherDed||0)*12);
-}
-function calcGrossForTakeHome(targetMonthly) {
-  let low = targetMonthly * 12, high = targetMonthly * 12 * 1.6;
-  for (let i = 0; i < 30; i++) {
-    const mid = (low + high) / 2;
-    if (estimateTakeHome(mid) / 12 < targetMonthly) low = mid; else high = mid;
-  }
-  return Math.round((low + high) / 2);
-}
-function calcDealComm(d) {
-  const v = SCHEME.vehicle[d.type] || { order: 0, delivery: 0 };
-  let vehicle = 0;
-  if (d.status === 'order' || d.status === 'both') vehicle += v.order;
-  if (d.status === 'delivery' || d.status === 'both') vehicle += v.delivery;
-  let fi = 0;
-  const products = SCHEME.fi[d.type] || {};
-  (d.fi || []).forEach(p => { if (products[p]) fi += products[p]; });
-  if (d.csi != null && d.csi < 8) return { vehicle: 0, fi: 0, total: 0, clawed: true };
-  return { vehicle, fi, total: vehicle + fi, clawed: false };
-}
-
-function monthKey(dateStr) {
-  const d = new Date(dateStr);
-  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
-}
-function currentMonthKey() {
-  const n = new Date();
-  return n.getFullYear() + '-' + String(n.getMonth()+1).padStart(2,'0');
-}
-function prevMonthKey() {
-  const n = new Date();
-  n.setMonth(n.getMonth() - 1);
-  return n.getFullYear() + '-' + String(n.getMonth()+1).padStart(2,'0');
-}
-function monthLabel(key) {
-  const [y,m] = key.split('-');
-  return new Date(+y, +m-1, 1).toLocaleString('en-GB', { month: 'short', year: 'numeric' });
-}
-function getMonthStats(key) {
-  let units = 0, comm = 0, orders = 0, fiTotal = 0, fiCount = 0;
-  const byType = { 'new-retail': 0, 'new-motab': 0, used: 0 };
-  deals.forEach(d => {
-    if (monthKey(d.date) !== key) return;
-    const c = calcDealComm(d);
-    comm += c.total;
-    if (d.status === 'order' || d.status === 'both') orders++;
-    if (d.status === 'delivery' || d.status === 'both') { units++; byType[d.type] = (byType[d.type]||0)+1; }
-    if ((d.fi||[]).length) { fiTotal += c.fi; fiCount++; }
   });
-  return { units, comm, orders, deliveries: units, fiTotal, fiCount, byType, avgFi: fiCount ? fiTotal/fiCount : 0 };
+  return {key,earned:earned+monthlyAdjustments(key),grossEarned:earned,adjustments:monthlyAdjustments(key),expected,paid,units,newUnits,used,motab,expectedEvents};
 }
-function getMonthTarget(key) {
-  return (settings.monthTargets || {})[key] || 14;
+function netForMonthCommission(comm){
+  const grossMonth=(Number(settings.basic)||20000)/12+Number(comm||0);
+  return estimateAnnualNet(grossMonth*12)/12;
+}
+function payMonthForCurrent(){ return monthAfter(currentMonthKey()); }
+
+function renderSummary(){
+  const key=currentMonthKey(), s=monthStats(key);
+  const target=commissionTarget(), grossNeeded=Math.round(grossForNet(Number(settings.netTarget)||3000)/12), net=netForMonthCommission(s.earned);
+  document.getElementById('grossNeeded').textContent=money(grossNeeded);
+  document.getElementById('commNeeded').textContent=money(target);
+  document.getElementById('netNow').textContent=money(net);
+  document.getElementById('commGap').textContent=money(Math.max(0,target-s.earned));
+  document.getElementById('netProgress').style.width=Math.min(100,net/(Number(settings.netTarget)||3000)*100)+'%';
+  document.getElementById('dashEarned').textContent=money(s.earned);
+  document.getElementById('dashEarnedSub').textContent=monthLabel(key);
+  document.getElementById('dashCommProgress').style.width=Math.min(100,s.earned/(target||1)*100)+'%';
+  const next=monthStats(payMonthForCurrent());
+  document.getElementById('dashExpected').textContent=money(next.expected);
+  document.getElementById('dashExpectedSub').textContent=monthLabel(next.key)+' payslip view';
+  document.getElementById('dashPaid').textContent=money(next.paid);
+  const openTasks=tasks.filter(t=>!t.done);
+  const overdue=openTasks.filter(t=>t.due && t.due<todayKey()).length;
+  document.getElementById('dashWork').textContent=String(openTasks.length);
+  document.getElementById('dashWorkSub').textContent=overdue?overdue+' overdue':'Open customer tasks';
+}
+function renderDashboard(){
+  const key=currentMonthKey(),s=monthStats(key);
+  const attention=deals.filter(d=>dealRisk(d).length).sort((a,b)=>(a.deliveryDate||'').localeCompare(b.deliveryDate||'')).slice(0,8);
+  document.getElementById('dashAttention').innerHTML=attention.length?attention.map(d=>`<div class="task"><div class="task-main"><div class="task-title">${esc(d.customer||'Unnamed')} · ${esc(d.vehicle||'Vehicle')}</div><div class="task-meta">${STAGE_LABELS[d.stage]||d.stage} · ${esc(dealRisk(d)[0])}</div></div><button class="btn sm" onclick="openDealModal('${d.id}')">Open</button></div>`).join(''):'<div class="empty">No commission or deal-risk flags.</div>';
+  const target=monthTarget(key);
+  document.getElementById('dashBreakdown').innerHTML=[
+    ['Orders logged',deals.filter(d=>monthKey(d.orderDate)===key).length],
+    ['Delivered',s.units],
+    ['New Retail',s.newUnits],
+    ['Motability',s.motab],
+    ['Used',s.used],
+    ['Commission adjustments',money(s.adjustments)]
+  ].map(x=>`<div class="statline"><span>${esc(x[0])}</span><strong>${esc(x[1])}</strong></div>`).join('')+(target===null?'<div class="note" style="margin-top:8px">Monthly vehicle target is not set for this month.</div>':`<div class="statline"><span>Monthly unit target</span><strong>${target}</strong></div>`);
+  const nextKey=payMonthForCurrent(), prev=monthStats(currentMonthKey());
+  const flow=[
+    `<div class="statline"><span>${monthLabel(key)} earned</span><strong>${money(prev.earned)}</strong></div>`,
+    `<div class="statline"><span>${monthLabel(nextKey)} expected from this month's earned commission</span><strong>${money(monthStats(nextKey).expected)}</strong></div>`,
+    `<div class="statline"><span>${monthLabel(nextKey)} actually recorded paid</span><strong>${money(monthStats(nextKey).paid)}</strong></div>`
+  ];
+  document.getElementById('dashFlow').innerHTML=flow.join('')+'<div class="note" style="margin-top:8px">Commission is shown on the following payslip month because your contract states commission is paid one month in arrears.</div>';
 }
 
-function renderFiChecks(selected) {
-  const type = document.getElementById('dealType').value;
-  const products = SCHEME.fi[type] || {};
-  const sel = selected || [];
-  document.getElementById('fiChecks').innerHTML = Object.keys(products).map(k =>
-    '<label><input type="checkbox" name="fi" value="' + k + '" ' + (sel.includes(k)?'checked':'') + '> ' + FI_LABELS[k] + ' (£' + products[k] + ')</label>'
-  ).join('');
+function taskDueClass(t){
+  if(t.done)return 'done';
+  if(!t.due)return '';
+  if(t.due<todayKey())return 'overdue';
+  if(t.due===todayKey())return 'today';
+  return 'upcoming';
 }
-
-function refreshAll() {
-  updateSummary();
-  renderDeals();
-  renderDashboard();
-  renderHistory();
-  renderInsight();
-  if (typeof renderWeeklyReminder === 'function') renderWeeklyReminder();
-  if (typeof renderFiConversion === 'function') renderFiConversion();
-  if (typeof renderFireNote === 'function') renderFireNote();
+function taskHtml(t){
+  const d=deals.find(x=>x.id===t.dealId);
+  return `<div class="task ${t.done?'done':''}">
+    <input type="checkbox" ${t.done?'checked':''} onchange="toggleTask('${t.id}')">
+    <div class="task-main"><div class="task-title">${esc(t.title)}</div>
+    <div class="task-meta">${esc(t.type||'Other')} · ${d?esc(d.customer):'No linked deal'} · ${t.due?dateLabel(t.due):'No due date'} ${t.priority==='high'?'· HIGH':''}</div>
+    ${t.notes?`<div class="task-meta">${esc(t.notes)}</div>`:''}</div>
+    <button class="btn sm" onclick="openTaskForEdit('${t.id}')">Edit</button>
+  </div>`;
 }
-
-function updateSummary() {
-  const nowKey = currentMonthKey();
-  const stats = getMonthStats(nowKey);
-  let yearUnits = 0;
-  deals.forEach(d => { if (d.status === 'delivery' || d.status === 'both') yearUnits++; });
-  document.getElementById('monthComm').textContent = '£' + stats.comm.toLocaleString();
-  document.getElementById('monthUnits').textContent = stats.units + ' units delivered';
-  const target = getMonthTarget(nowKey);
-  document.getElementById('unitTargetStat').textContent = stats.units + ' / ' + target;
-  document.getElementById('unitTargetLabel').textContent = stats.units >= target ? (stats.units > target ? 'Beaten by ' + (stats.units - target) + '!' : 'Target met') : (target - stats.units) + ' more to target';
-  document.getElementById('unitProg').style.width = Math.min(100, (stats.units / target) * 100) + '%';
-  document.getElementById('yearUnitsStat').textContent = yearUnits + ' / 160';
-  let bonusLabel = 'Need 160 for £1,000';
-  if (yearUnits >= 240) bonusLabel = '240+ → £4,000';
-  else if (yearUnits >= 200) bonusLabel = '200 → £2,000 · next 240';
-  else if (yearUnits >= 160) bonusLabel = '160 → £1,000 · next 200';
-  else bonusLabel = (160 - yearUnits) + ' more for £1,000';
-  document.getElementById('bonusLabel').textContent = bonusLabel;
-  document.getElementById('yearProg').style.width = Math.min(100, (yearUnits / 160) * 100) + '%';
-  const basicM = (settings.basic || 20000) / 12;
-  const th = estimateTakeHome((basicM + stats.comm) * 12) / 12;
-  const thEl = document.getElementById('takeHomeNow');
-  thEl.textContent = '£' + Math.round(th).toLocaleString();
-  thEl.className = 'stat ' + (th >= 3000 ? 'green' : th >= 2500 ? 'yellow' : 'red');
-  const grossNeeded = calcGrossForTakeHome(3000);
-  const commNeeded = Math.max(0, Math.round(grossNeeded / 12 - basicM));
-  settings._commNeeded = commNeeded;
-  document.getElementById('grossNeeded').textContent = '£' + Math.round(grossNeeded / 12).toLocaleString();
-  document.getElementById('commNeeded').textContent = '£' + commNeeded.toLocaleString();
-  document.getElementById('monthProg').style.width = Math.min(100, (stats.comm / (commNeeded || 1)) * 100) + '%';
-  const gap = Math.max(0, commNeeded - stats.comm);
-  const pathEl = document.getElementById('pathToTarget');
-  if (gap <= 0) pathEl.innerHTML = '<span style="color:var(--green);font-weight:600;">You are on track for £3,000+ take-home this month.</span>';
-  else {
-    const avgFiUsed = stats.avgFi || 100;
-    const carsNeeded = Math.ceil(gap / Math.max(60 + avgFiUsed, 80));
-    pathEl.innerHTML = 'Need <strong style="color:var(--text)">£' + gap.toLocaleString() + '</strong> more commission ≈ <strong style="color:var(--text)">' + carsNeeded + ' more used cars</strong> with typical F&amp;I.';
-  }
+function renderWork(){
+  const open=tasks.filter(t=>!t.done).sort((a,b)=>(a.due||'9999').localeCompare(b.due||'9999'));
+  const overdue=open.filter(t=>t.due&&t.due<todayKey()),today=open.filter(t=>t.due===todayKey()),upcoming=open.filter(t=>t.due&&t.due>todayKey());
+  const noDue=open.filter(t=>!t.due);
+  document.getElementById('workOverdue').innerHTML=overdue.length?overdue.map(taskHtml).join(''):'<div class="empty">Nothing overdue.</div>';
+  document.getElementById('workToday').innerHTML=today.length?today.map(taskHtml).join(''):'<div class="empty">Nothing due today.</div>';
+  document.getElementById('workUpcoming').innerHTML=(upcoming.length?upcoming:[]).slice(0,10).map(taskHtml).join('')+(noDue.length?`<div style="margin-top:8px"><div class="note">No due date</div>${noDue.slice(0,5).map(taskHtml).join('')}</div>`:'');
+  document.getElementById('workAll').innerHTML=open.length?open.map(taskHtml).join(''):'<div class="empty">No open customer work.</div>';
 }
-
-function renderDashboard() {
-  const nowKey = currentMonthKey();
-  const stats = getMonthStats(nowKey);
-  const parts = [];
-  if (stats.byType['new-retail']) parts.push(stats.byType['new-retail'] + ' New Retail');
-  if (stats.byType['new-motab']) parts.push(stats.byType['new-motab'] + ' Motability');
-  if (stats.byType.used) parts.push(stats.byType.used + ' Used');
-  parts.push(stats.orders + ' orders logged');
-  if (stats.fiCount) parts.push('Avg F&amp;I £' + Math.round(stats.avgFi) + ' on ' + stats.fiCount + ' deals');
-  document.getElementById('dashBreakdown').innerHTML = parts.length ? parts.map(p => '• ' + p).join('<br>') : 'No activity this month yet. First deal of the day sets the tone.';
-  const awaiting = deals.filter(d => d.status === 'order');
-  const awEl = document.getElementById('awaitingList');
-  if (!awaiting.length) awEl.textContent = 'None — all clear.';
-  else awEl.innerHTML = awaiting.map(d => {
-    const c = calcDealComm(d);
-    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;margin-bottom:0.35rem;"><span>' + (d.customer || 'Deal') + ' (' + d.date + ') — order £' + c.vehicle + '</span><button class="btn-green btn-sm" onclick="markDelivered(\'' + d.id + '\')">Mark delivered</button></div>';
-  }).join('');
+function openTaskModal(id=''){
+  const el=document.getElementById('taskModal'); el.classList.add('show');
+  const t=tasks.find(x=>x.id===id);
+  document.getElementById('tDeal').innerHTML='<option value="">No linked deal</option>'+deals.map(d=>`<option value="${esc(d.id)}">${esc(d.customer||'Unnamed')} · ${esc(d.vehicle||'Vehicle')}</option>`).join('');
+  document.getElementById('tDeal').value=t?.dealId||'';
+  document.getElementById('tTitle').value=t?.title||'';
+  document.getElementById('tDue').value=t?.due||todayKey();
+  document.getElementById('tType').value=t?.type||'Call';
+  document.getElementById('tPriority').value=t?.priority||'normal';
+  document.getElementById('tNotes').value=t?.notes||'';
+  el.dataset.editId=id;
 }
-
-function renderDeals() {
-  const tbody = document.getElementById('dealsBody');
-  const noDeals = document.getElementById('noDeals');
-  document.getElementById('dealCount').textContent = '(' + deals.length + ')';
-  if (!deals.length) { tbody.innerHTML = ''; noDeals.style.display = 'block'; return; }
-  noDeals.style.display = 'none';
-  const sorted = [...deals].sort((a,b) => b.date.localeCompare(a.date));
-  tbody.innerHTML = sorted.map(d => {
-    const c = calcDealComm(d);
-    const typeTag = d.type === 'used' ? 'tag-used' : d.type === 'new-motab' ? 'tag-motab' : 'tag-new';
-    const typeLabel = d.type === 'used' ? 'Used' : d.type === 'new-motab' ? 'Motab' : 'New';
-    const stTag = d.status === 'order' ? 'tag-order' : d.status === 'delivery' ? 'tag-delivery' : 'tag-both';
-    const stLabel = d.status === 'order' ? 'Order' : d.status === 'delivery' ? 'Delivery' : 'Both';
-    const fiStr = (d.fi || []).map(p => FI_LABELS[p] || p).join(', ') || '—';
-    const delBtn = d.status === 'order' ? '<button class="btn-green btn-sm" onclick="markDelivered(\'' + d.id + '\')">Delivered</button> ' : '';
-    return '<tr><td>' + d.date + '</td><td>' + (d.customer || '—') + '</td><td><span class="tag ' + typeTag + '">' + typeLabel + '</span></td><td><span class="tag ' + stTag + '">' + stLabel + '</span></td><td style="font-size:0.7rem">' + fiStr + '</td><td>£' + c.total + (c.clawed ? ' <span style="color:var(--red)">(CSI)</span>' : '') + '</td><td style="white-space:nowrap">' + delBtn + '<button class="btn-secondary btn-sm" onclick="startEdit(\'' + d.id + '\')">Edit</button> <button class="btn-secondary btn-sm" onclick="deleteDeal(\'' + d.id + '\')">×</button></td></tr>';
-  }).join('');
-}
-
-function renderHistory() {
-  const keys = [...new Set(deals.map(d => monthKey(d.date)))].sort().reverse();
-  const body = document.getElementById('historyBody');
-  const noH = document.getElementById('noHistory');
-  if (!keys.length) { body.innerHTML = ''; noH.style.display = 'block'; return; }
-  noH.style.display = 'none';
-  const basicM = (settings.basic || 20000) / 12;
-  body.innerHTML = keys.map(k => {
-    const s = getMonthStats(k);
-    const th = estimateTakeHome((basicM + s.comm) * 12) / 12;
-    return '<div class="hist-row"><div><strong>' + monthLabel(k) + '</strong></div><div>' + s.units + ' units</div><div>£' + s.comm.toLocaleString() + '</div><div class="hide-m">£' + Math.round(th).toLocaleString() + '</div></div>';
-  }).join('');
-  const prev = prevMonthKey();
-  const ps = getMonthStats(prev);
-  const insightEl = document.getElementById('lastMonthInsight');
-  if (ps.units === 0 && ps.comm === 0) insightEl.textContent = 'No deals logged for last month yet.';
-  else {
-    const bits = [];
-    bits.push('You delivered <strong style="color:var(--text)">' + ps.units + ' units</strong> and earned <strong style="color:var(--text)">£' + ps.comm.toLocaleString() + '</strong> commission.');
-    if (ps.byType.used) bits.push('Used: ' + ps.byType.used + '.');
-    if (ps.avgFi > 0) bits.push('Avg F&amp;I £' + Math.round(ps.avgFi) + '.');
-    const target = getMonthTarget(prev);
-    if (ps.units >= target) bits.push('You hit your unit target of ' + target + '.');
-    else bits.push('Target was ' + target + ' — finished at ' + ps.units + '.');
-    insightEl.innerHTML = bits.join(' ');
-  }
-}
-
-function renderInsight() {
-  const box = document.getElementById('insightBox');
-  const prev = prevMonthKey();
-  const ps = getMonthStats(prev);
-  if (ps.units === 0 && ps.comm === 0) { box.style.display = 'none'; return; }
-  box.style.display = 'block';
-  box.innerHTML = '<strong>Last month (' + monthLabel(prev) + '):</strong> ' + ps.units + ' units · £' + ps.comm.toLocaleString() + ' commission' + (ps.units >= getMonthTarget(prev) ? ' · target hit' : '');
-}
-
-async function markDelivered(id) {
-  const d = deals.find(x => x.id === id);
-  if (!d || d.status !== 'order') return;
-  if (!confirm('Mark "' + (d.customer || 'this deal') + '" as delivered? Adds delivery commission.')) return;
-  d.status = 'both';
-  localStorage.setItem('ps_deals', JSON.stringify(deals));
-  refreshAll();
-  await cloudSave();
-}
-
-function startEdit(id) {
-  const d = deals.find(x => x.id === id);
-  if (!d) return;
-  document.getElementById('editId').value = d.id;
-  document.getElementById('dealDate').value = d.date;
-  document.getElementById('dealCustomer').value = d.customer || '';
-  document.getElementById('dealType').value = d.type;
-  document.getElementById('dealStatus').value = d.status;
-  document.getElementById('dealCsi').value = d.csi != null ? d.csi : '';
-  document.getElementById('dealNotes').value = d.notes || '';
-  renderFiChecks(d.fi || []);
-  document.getElementById('formTitle').textContent = 'Edit Deal';
-  document.getElementById('submitBtn').textContent = 'Save changes';
-  document.getElementById('cancelEdit').style.display = 'inline-block';
-  document.querySelector('[data-tab="add"]').click();
-}
-function cancelEdit() {
-  document.getElementById('editId').value = '';
-  document.getElementById('dealForm').reset();
-  document.getElementById('dealDate').valueAsDate = new Date();
-  document.getElementById('formTitle').textContent = 'Log a Deal';
-  document.getElementById('submitBtn').textContent = 'Add Deal';
-  document.getElementById('cancelEdit').style.display = 'none';
-  renderFiChecks();
-}
-
-async function addDeal(e) {
+function closeTaskModal(){document.getElementById('taskModal').classList.remove('show')}
+function openTaskForEdit(id){openTaskModal(id)}
+function saveTask(e){
   e.preventDefault();
-  const fi = [...document.querySelectorAll('input[name="fi"]:checked')].map(c => c.value);
-  const editId = document.getElementById('editId').value;
-  const payload = {
-    id: editId || (Date.now().toString(36) + Math.random().toString(36).slice(2,6)),
-    date: document.getElementById('dealDate').value,
-    customer: document.getElementById('dealCustomer').value.trim(),
-    type: document.getElementById('dealType').value,
-    status: document.getElementById('dealStatus').value,
-    fi,
-    csi: document.getElementById('dealCsi').value ? parseFloat(document.getElementById('dealCsi').value) : null,
-    notes: document.getElementById('dealNotes').value.trim()
-  };
-  if (editId) {
-    const idx = deals.findIndex(d => d.id === editId);
-    if (idx >= 0) deals[idx] = payload;
-  } else deals.push(payload);
-  localStorage.setItem('ps_deals', JSON.stringify(deals));
-  cancelEdit();
-  refreshAll();
-  document.querySelector('[data-tab="deals"]').click();
-  await cloudSave();
+  const id=document.getElementById('taskModal').dataset.editId||'';
+  const obj={id:id||uid('task'),dealId:document.getElementById('tDeal').value,title:document.getElementById('tTitle').value.trim(),due:document.getElementById('tDue').value,type:document.getElementById('tType').value,priority:document.getElementById('tPriority').value,notes:document.getElementById('tNotes').value.trim(),done:false};
+  const i=tasks.findIndex(x=>x.id===id); if(i>=0)tasks[i]={...tasks[i],...obj};else tasks.push(obj);
+  persist();closeTaskModal();refreshAll();
+}
+function toggleTask(id){const t=tasks.find(x=>x.id===id);if(!t)return;t.done=!t.done;t.completedDate=t.done?todayKey():'';persist();refreshAll()}
+
+function renderDeals(){
+  const q=(document.getElementById('dealSearch').value||'').toLowerCase(),f=document.getElementById('dealFilter').value;
+  const rows=deals.filter(d=>(f==='all'||d.stage===f)&&((d.customer+' '+d.vehicle+' '+d.stock).toLowerCase().includes(q))).sort((a,b)=>(b.orderDate||b.leadDate||'').localeCompare(a.orderDate||a.leadDate||''));
+  const body=document.getElementById('dealsBody');
+  document.getElementById('noDeals').style.display=rows.length?'none':'block';
+  body.innerHTML=rows.map(d=>{
+    const ev=eventDefs(d),earned=ev.reduce((s,e)=>s+eligibleEvent(d,e),0),expected=ev.reduce((s,e)=>s+(e.payMonth===payMonthForCurrent()?Math.max(0,eligibleEvent(d,e)-eventPaid(d,e)):0),0);
+    const next=tasks.filter(t=>t.dealId===d.id&&!t.done).sort((a,b)=>(a.due||'9999').localeCompare(b.due||'9999'))[0];
+    const cls=d.stage==='delivered'?'b-green':d.stage==='lost'?'b-red':d.stage==='awaiting-delivery'?'b-yellow':'b-blue';
+    return `<tr>
+      <td><strong>${esc(d.customer||'Unnamed')}</strong><div class="small">${esc(d.phone||d.email||'')}</div></td>
+      <td>${esc(d.vehicle||'—')}<div class="small">${esc(d.stock||'')}</div></td>
+      <td><span class="badge ${cls}">${esc(STAGE_LABELS[d.stage]||d.stage)}</span></td>
+      <td>${dateLabel(d.orderDate)}</td><td>${dateLabel(d.deliveryDate)}</td>
+      <td>${next?`<strong>${esc(next.title)}</strong><div class="small">${dateLabel(next.due)}</div>`:'<span class="muted">—</span>'}</td>
+      <td><strong>${money(earned)}</strong></td><td>${money(expected)}</td>
+      <td><button class="btn sm" onclick="openDealModal('${d.id}')">Open</button></td>
+    </tr>`;
+  }).join('');
 }
 
-async function deleteDeal(id) {
-  if (!confirm('Delete this deal?')) return;
-  deals = deals.filter(d => d.id !== id);
-  localStorage.setItem('ps_deals', JSON.stringify(deals));
-  refreshAll();
-  await cloudSave();
+function buildFiChecks(selected=[]){
+  const type=document.getElementById('fType').value,products=SCHEME.fi[type]||{};
+  document.getElementById('fiChecks').innerHTML=Object.keys(products).map(k=>`<label class="check"><input type="checkbox" name="fi" value="${esc(k)}" ${selected.includes(k)?'checked':''}> ${esc(FI_LABELS[k])} +${money(products[k])}</label>`).join('');
 }
-async function clearDeals() {
-  deals = [];
-  localStorage.setItem('ps_deals', '[]');
-  refreshAll();
-  await cloudSave();
+function renderDealEventsInModal(){
+  if(!openDealId){document.getElementById('dealEvents').innerHTML='<div class="note">Save the deal first, then commission events and payment tracking appear here.</div>';return;}
+  const d=deals.find(x=>x.id===openDealId);if(!d)return;
+  const events=eventDefs(d);
+  document.getElementById('dealEvents').innerHTML=events.length?events.map(e=>{
+    const eligible=eligibleEvent(d,e),p=paymentFor(d,e.id),remaining=Math.max(0,eligible-eventPaid(d,e));
+    let status='Potential';
+    if(eligible)status=remaining>0?'Eligible / awaiting payment':'Paid / recorded';
+    if(d.csi!==null&&d.csi<8)status='At risk — CSI';
+    if(e.kind==='fi'&&e.kind==='fi'&&!e.eligibleDate)status='Sold / waiting qualification';
+    return `<div class="event"><div class="eventline"><div class="eventtitle">${esc(e.label)}</div><strong>${money(e.amount)}</strong></div>
+      <div class="eventmeta">Eligible: ${dateLabel(e.eligibleDate)} · Expected pay: ${e.payMonth?monthLabel(e.payMonth):'Not yet known'} · ${esc(e.requires)}</div>
+      <div class="toolbar" style="margin-top:6px"><span class="badge ${remaining>0&&eligible?'b-yellow':eligible?'b-green':'b-gray'}">${esc(status)}</span><span class="small">Paid ${money(p.amount||0)} ${p.date?'on '+dateLabel(p.date):''}</span>${remaining>0?'<button class="btn sm" onclick="openPaymentModal(''+d.id+'',''+e.id+'')">Record payment</button>':''}</div>
+      ${p.note?'<div class="small" style="margin-top:4px">'+esc(p.note)+'</div>':''}
+    </div>`;
+  }).join(''):'<div class="empty">No commission event can be calculated from the information recorded yet.</div>';
 }
-function saveMonthTarget() {
-  const key = document.getElementById('setTargetMonth').value || currentMonthKey();
-  const val = parseInt(document.getElementById('setMonthTarget').value) || 14;
-  if (!settings.monthTargets) settings.monthTargets = {};
-  settings.monthTargets[key] = val;
-  localStorage.setItem('ps_settings', JSON.stringify(settings));
-  refreshAll();
-  cloudSave();
-  alert('Target for ' + key + ' set to ' + val + ' units');
+function renderDealDiary(){
+  if(!openDealId)return;const d=deals.find(x=>x.id===openDealId);if(!d)return;
+  document.getElementById('dealDiary').innerHTML=d.journal.length?[...d.journal].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(e=>`<div class="entry"><div class="d">${dateLabel(e.date)}</div><div class="t">${esc(e.text)}</div></div>`).join(''):'<div class="empty">No diary entries yet.</div>';
 }
-function saveSettings() {
-  settings.basic = parseFloat(document.getElementById('setBasic').value) || 20000;
-  settings.pension = parseFloat(document.getElementById('setPension').value) || 0;
-  settings.otherDed = parseFloat(document.getElementById('setOtherDed').value) || 0;
-  localStorage.setItem('ps_settings', JSON.stringify(settings));
-  refreshAll();
-  cloudSave();
-  alert('Settings saved');
+function renderDealTasks(){
+  if(!openDealId)return;const rows=tasks.filter(t=>t.dealId===openDealId).sort((a,b)=>(a.done-b.done)||(a.due||'9999').localeCompare(b.due||'9999'));
+  document.getElementById('dealTasks').innerHTML=rows.length?rows.map(taskHtml).join(''):'<div class="empty">No work items for this customer.</div>';
 }
-function runModel() {
-  const nr = +document.getElementById('mNewRetail').value || 0;
-  const nm = +document.getElementById('mNewMotab').value || 0;
-  const u  = +document.getElementById('mUsed').value || 0;
-  const fiN = +document.getElementById('mFiNew').value || 0;
-  const fiU = +document.getElementById('mFiUsed').value || 0;
-  const veh = nr * 80 + nm * 60 + u * 60;
-  const fi = (nr + nm) * fiN + u * fiU;
-  const total = veh + fi;
-  document.getElementById('mVehicle').textContent = '£' + veh.toLocaleString();
-  document.getElementById('mFi').textContent = '£' + Math.round(fi).toLocaleString();
-  document.getElementById('mTotal').textContent = '£' + Math.round(total).toLocaleString();
-  const th = estimateTakeHome(((settings.basic||20000)/12 + total) * 12) / 12;
-  const el = document.getElementById('mTakeHome');
-  el.textContent = '£' + Math.round(th).toLocaleString();
-  el.className = 'stat ' + (th >= 3000 ? 'green' : th >= 2500 ? 'yellow' : '');
-  document.getElementById('modelResult').style.display = 'block';
+function openDealModal(id=''){
+  openDealId=id||'';
+  const el=document.getElementById('dealModal');el.classList.add('show');
+  document.getElementById('dealModalTitle').textContent=id?'Edit deal':'Add deal';
+  document.getElementById('editId').value=id;
+  document.getElementById('quickTaskDue').value=todayKey();
+  if(!id){
+    ['fCustomer','fPhone','fEmail','fVehicle','fStock','fPx','fNextAction','fDiary'].forEach(x=>document.getElementById(x).value='');
+    document.getElementById('fLeadDate').value=todayKey();document.getElementById('fOrderDate').value='';document.getElementById('fExpectedDelivery').value='';document.getElementById('fDeliveryDate').value='';document.getElementById('fFinancePayout').value='';document.getElementById('fCSI').value='';document.getElementById('fStage').value='lead';document.getElementById('fType').value='new-retail';buildFiChecks([]);document.getElementById('dealEvents').innerHTML='<div class="note">Save the deal first, then commission events and payment tracking appear here.</div>';document.getElementById('dealDiary').innerHTML='<div class="empty">Save the deal and start the diary.</div>';document.getElementById('dealTasks').innerHTML='<div class="empty">Save the deal before adding linked work.</div>';return;
+  }
+  const d=deals.find(x=>x.id===id);if(!d)return;
+  document.getElementById('fCustomer').value=d.customer;document.getElementById('fPhone').value=d.phone||'';document.getElementById('fEmail').value=d.email||'';document.getElementById('fVehicle').value=d.vehicle||'';document.getElementById('fStock').value=d.stock||'';
+  document.getElementById('fType').value=d.type;document.getElementById('fStage').value=d.stage;document.getElementById('fLeadDate').value=d.leadDate||'';document.getElementById('fOrderDate').value=d.orderDate||'';document.getElementById('fExpectedDelivery').value=d.expectedDeliveryDate||'';document.getElementById('fDeliveryDate').value=d.deliveryDate||'';document.getElementById('fFinancePayout').value=d.financePayoutDate||'';document.getElementById('fCSI').value=d.csi??'';document.getElementById('fPx').value=d.px||'';document.getElementById('fNextAction').value=d.nextAction||'';
+  buildFiChecks(d.fi||[]);renderDealEventsInModal();renderDealDiary();renderDealTasks();
 }
-function exportJSON() {
-  const data = { deals, settings, exported: new Date().toISOString(), version: 6 };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'pentagon-commission-' + new Date().toISOString().slice(0,10) + '.json';
-  a.click();
-}
-function exportCSV() {
-  const headers = ['Date','Customer','Type','Status','F&I','Vehicle Comm','F&I Comm','Total Comm','CSI','Notes'];
-  const rows = deals.map(d => {
-    const c = calcDealComm(d);
-    return [d.date, d.customer||'', d.type, d.status, (d.fi||[]).join(';'), c.vehicle, c.fi, c.total, d.csi??'', d.notes||''].map(x => '"'+String(x).replace(/"/g,'""')+'"').join(',');
-  });
-  const blob = new Blob([[headers.join(','), ...rows].join('\n')], { type: 'text/csv' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'pentagon-deals-' + new Date().toISOString().slice(0,10) + '.csv';
-  a.click();
-}
-function exportPDF() {
-  if (typeof window._exportPDFImpl === 'function') return window._exportPDFImpl();
-  alert('PDF module loading — refresh and try again.');
-}
-function importData(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = async ev => {
-    try {
-      const data = JSON.parse(ev.target.result);
-      if (data.deals) deals = data.deals;
-      if (data.settings) settings = { ...settings, ...data.settings };
-      localStorage.setItem('ps_deals', JSON.stringify(deals));
-      localStorage.setItem('ps_settings', JSON.stringify(settings));
-      loadSettingsUI(); refreshAll();
-      await cloudSave();
-      alert('Imported ' + deals.length + ' deals');
-    } catch (err) { alert('Invalid JSON'); }
+function closeDealModal(){document.getElementById('dealModal').classList.remove('show');openDealId=null}
+function saveDeal(e){
+  e.preventDefault();
+  const id=document.getElementById('editId').value||uid('deal');
+  const fi=[...document.querySelectorAll('input[name="fi"]:checked')].map(x=>x.value);
+  const old=deals.find(d=>d.id===id);
+  const d={
+    id,customer:document.getElementById('fCustomer').value.trim(),phone:document.getElementById('fPhone').value.trim(),email:document.getElementById('fEmail').value.trim(),
+    vehicle:document.getElementById('fVehicle').value.trim(),stock:document.getElementById('fStock').value.trim(),type:document.getElementById('fType').value,stage:document.getElementById('fStage').value,
+    leadDate:document.getElementById('fLeadDate').value,orderDate:document.getElementById('fOrderDate').value,expectedDeliveryDate:document.getElementById('fExpectedDelivery').value,deliveryDate:document.getElementById('fDeliveryDate').value,financePayoutDate:document.getElementById('fFinancePayout').value,
+    fi,csi:document.getElementById('fCSI').value===''?null:Number(document.getElementById('fCSI').value),px:document.getElementById('fPx').value.trim(),nextAction:document.getElementById('fNextAction').value.trim(),
+    journal:old?.journal||[],adjustments:old?.adjustments||[],payments:old?.payments||[]
   };
-  reader.readAsText(file);
+  if(!old && d.leadDate)d.journal.push({id:uid('note'),date:d.leadDate,text:'Deal created.'});
+  const i=deals.findIndex(x=>x.id===id);if(i>=0)deals[i]=d;else deals.push(d);
+  persist();openDealId=id;refreshAll();openDealModal(id);
 }
-function loadSettingsUI() {
-  document.getElementById('setBasic').value = settings.basic || 20000;
-  document.getElementById('setPension').value = settings.pension || 0;
-  document.getElementById('setOtherDed').value = settings.otherDed || 0;
-  document.getElementById('setTheme').value = settings.theme || 'dark';
-  document.getElementById('setTargetMonth').value = currentMonthKey();
-  document.getElementById('setMonthTarget').value = getMonthTarget(currentMonthKey());
-  setTheme(settings.theme || 'dark');
+function addDiaryEntry(){
+  if(!openDealId)return;
+  const d=deals.find(x=>x.id===openDealId),text=document.getElementById('fDiary').value.trim();if(!d||!text)return;
+  d.journal=d.journal||[];d.journal.push({id:uid('note'),date:todayKey(),text});document.getElementById('fDiary').value='';persist();renderDealDiary();cloudSave();
+}
+function addQuickTask(){
+  if(!openDealId)return;
+  const title=document.getElementById('quickTaskTitle').value.trim();if(!title)return;
+  tasks.push({id:uid('task'),dealId:openDealId,title,due:document.getElementById('quickTaskDue').value,type:document.getElementById('quickTaskType').value,priority:'normal',notes:'',done:false});
+  document.getElementById('quickTaskTitle').value='';persist();renderDealTasks();renderWork();cloudSave();
+}
+function deleteDeal(id){
+  if(!confirm('Delete this deal and linked work?'))return;
+  deals=deals.filter(d=>d.id!==id);tasks=tasks.filter(t=>t.dealId!==id);persist();refreshAll();cloudSave();
 }
 
-document.querySelectorAll('.tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-    tab.classList.add('active');
-    document.getElementById('sec-' + tab.dataset.tab).classList.add('active');
+function populateCommissionMonths(){
+  const keys=annualMonths();const select=document.getElementById('commMonth');const old=select.value||currentMonthKey();
+  select.innerHTML=keys.map(k=>`<option value="${k}">${esc(monthLabel(k))}</option>`).join('');
+  select.value=keys.includes(old)?old:currentMonthKey();
+}
+function commissionEventRowsForMonth(key){
+  const rows=[];
+  deals.forEach(d=>eventDefs(d).forEach(e=>{
+    const eligible=eligibleEvent(d,e),paid=eventPaid(d,e),p=paymentFor(d,e);
+    if(monthKey(e.eligibleDate)===key && eligible)rows.push({d,e,mode:'earned',amount:eligible,paid});
+    if(e.payMonth===key){
+      const remaining=Math.max(0,eligible-paid);if(remaining>0)rows.push({d,e,mode:'expected',amount:remaining,paid});
+    }
+    if(p.date && monthKey(p.date)===key && paid)rows.push({d,e,mode:'paid',amount:paid,paid});
+  }));
+  return rows;
+}
+function renderCommission(){
+  populateCommissionMonths();
+  const key=document.getElementById('commMonth').value||currentMonthKey(),s=monthStats(key),target=commissionTarget();
+  document.getElementById('commEarned').textContent=money(s.earned);document.getElementById('commExpected').textContent=money(s.expected);document.getElementById('commPaid').textContent=money(s.paid);document.getElementById('commOutstanding').textContent=money(Math.max(0,s.expected-s.paid));
+  const boxes=annualMonths().map(k=>{const x=monthStats(k),t=monthTarget(k),status=t===null?'Target not set':x.units>=t?'Target met':(t-x.units)+' to target';return `<div class="monthbox"><h3>${esc(shortMonth(k))} <span class="small">${k}</span></h3><div class="n">${money(x.earned)}</div><div class="l">earned · ${x.units} delivered</div><div class="l" style="margin-top:4px">${esc(status)}</div></div>`}).join('');
+  document.getElementById('commissionMonths').innerHTML=boxes;
+  const rows=commissionEventRowsForMonth(key);
+  document.getElementById('commEvents').innerHTML=rows.length?`<div class="tablewrap"><table class="table"><thead><tr><th>Customer</th><th>Event</th><th>Amount</th><th>Mode</th><th>Eligible</th><th>Expected pay</th><th>Paid</th><th></th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.d.customer)}</td><td>${esc(r.e.label)}</td><td><strong>${money(r.amount)}</strong></td><td><span class="badge ${r.mode==='paid'?'b-green':r.mode==='expected'?'b-blue':'b-gray'}">${r.mode}</span></td><td>${dateLabel(r.e.eligibleDate)}</td><td>${r.e.payMonth?monthLabel(r.e.payMonth):'—'}</td><td>${r.paid?money(r.paid):'—'}</td><td>${r.mode==='expected'?'<button class="btn sm" onclick="openPaymentModal(\''+r.d.id+'\',\''+r.e.id+'\')">Record payment</button>':'<button class="btn sm" onclick="openDealModal(\''+r.d.id+'\')">Open deal</button>'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty">No eligible/expected/paid commission events recorded for this month.</div>';
+  const adj=[];
+  deals.forEach(d=>{
+    dealRisk(d).forEach(reason=>adj.push(`<div class="task"><div class="task-main"><div class="task-title">${esc(d.customer||'Unnamed')} · ${esc(reason)}</div><div class="task-meta"><button class="btn sm" onclick="openDealModal('${d.id}')">Open deal</button></div></div></div>`));
+    (d.adjustments||[]).filter(a=>monthKey(a.date)===key).forEach(a=>adj.push(`<div class="task"><div class="task-main"><div class="task-title">${esc(d.customer||'Unnamed')} · adjustment ${money(a.amount)}</div><div class="task-meta">${dateLabel(a.date)} · ${esc(a.reason||'')}</div></div></div>`));
   });
-});
-document.getElementById('dealType').addEventListener('change', () => renderFiChecks());
-document.getElementById('dealForm').addEventListener('submit', addDeal);
-document.getElementById('dealDate').valueAsDate = new Date();
-renderFiChecks();
-loadSettingsUI();
-refreshAll();
-initSupabase();
+  const t=monthTarget(key);if(t!==null){
+    const newDel=s.newUnits+s.motab;
+    if(newDel<t)adj.push(`<div class="task"><div class="task-main"><div class="task-title">20% new-vehicle monthly reduction applies</div><div class="task-meta">${newDel} new-vehicle deliveries vs target ${t}. Current earned commission shown above is before the scheme reduction.</div></div></div>`);
+  }
+  document.getElementById('commAdjustments').innerHTML=adj.length?adj.join(''):'<div class="empty">No current commission-risk or adjustment flags.</div>';
+}
+
+function renderPerformance(){
+  const ds=annualEligibleDeals(),units=ds.length,totalComm=ds.reduce((s,d)=>s+eventDefs(d).reduce((x,e)=>x+eligibleEvent(d,e),0),0),bonus=units>=240?4000:units>=200?2000:units>=160?1000:0;
+  document.getElementById('perfAnnualUnits').textContent=units+' / '+ANNUAL_TARGET;document.getElementById('perfAnnualBar').style.width=Math.min(100,units/ANNUAL_TARGET*100)+'%';
+  document.getElementById('perfPace').textContent=(ANNUAL_TARGET/12).toFixed(1);
+  document.getElementById('perfBonus').textContent=money(bonus);
+  document.getElementById('perfAvgComm').textContent=units?money(totalComm/units):'—';
+  document.getElementById('performanceBody').innerHTML=annualMonths().map(k=>{
+    const s=monthStats(k),t=monthTarget(k),status=t===null?'Not set':s.units>=t?'Met':'Below';
+    return `<tr><td><strong>${esc(monthLabel(k))}</strong></td><td>${t===null?'—':t}</td><td>${s.units}</td><td>${s.newUnits}</td><td>${s.used}</td><td>${s.motab}</td><td>${money(s.earned)}</td><td><span class="badge ${status==='Met'?'b-green':status==='Below'?'b-yellow':'b-gray'}">${esc(status)}</span></td></tr>`;
+  }).join('');
+  const risk=[];
+  deals.forEach(d=>dealRisk(d).forEach(r=>risk.push(`<div class="statline"><span>${esc(d.customer||'Unnamed')} · ${esc(r)}</span><button class="btn sm" onclick="openDealModal('${d.id}')">Open</button></div>`));
+  document.getElementById('perfRisk').innerHTML=risk.length?risk.join(''):'<div class="empty">No recorded deal-risk flags.</div>';
+}
+
+function openPaymentModal(dealId,eventId){
+  const d=deals.find(x=>x.id===dealId),e=eventDefs(d||{}).find(x=>x.id===eventId);if(!d||!e)return;
+  paymentContext={dealId,eventId};const p=paymentFor(d,eventId);document.getElementById('paymentContext').innerHTML=`<strong>${esc(d.customer||'Unnamed')}</strong> · ${esc(e.label)} · expected ${money(e.amount)}`;
+  document.getElementById('payAmount').value=p.amount||e.amount||'';document.getElementById('payDate').value=p.date||todayKey();document.getElementById('payNote').value=p.note||'';
+  document.getElementById('paymentModal').classList.add('show');
+}
+function closePaymentModal(){document.getElementById('paymentModal').classList.remove('show');paymentContext=null}
+function savePayment(){
+  if(!paymentContext)return;const d=deals.find(x=>x.id===paymentContext.dealId);if(!d)return;
+  d.payments=d.payments||{};d.payments[paymentContext.eventId]={amount:Number(document.getElementById('payAmount').value)||0,date:document.getElementById('payDate').value,note:document.getElementById('payNote').value.trim()};
+  persist();closePaymentModal();refreshAll();if(openDealId)openDealModal(openDealId);cloudSave();
+}
+
+function saveMonthTarget(){
+  const key=document.getElementById('setTargetMonth').value;if(!key){alert('Choose a month.');return}
+  const val=parseInt(document.getElementById('setMonthTarget').value,10);if(!val||val<1){alert('Enter the actual target for that month.');return}
+  settings.monthTargets=settings.monthTargets||{};settings.monthTargets[key]=val;persist();refreshAll();cloudSave();
+}
+function clearMonthTarget(){
+  const key=document.getElementById('setTargetMonth').value;if(!key)return;
+  if(settings.monthTargets)delete settings.monthTargets[key];persist();refreshAll();cloudSave();
+}
+function saveSettings(){
+  settings.basic=Number(document.getElementById('setBasic').value)||20000;
+  settings.netTarget=Number(document.getElementById('setNetTarget').value)||3000;
+  settings.pension=Number(document.getElementById('setPension').value)||0;
+  settings.otherDed=Number(document.getElementById('setOtherDed').value)||0;
+  persist();refreshAll();cloudSave();
+}
+function loadSettingsUI(){
+  document.getElementById('setBasic').value=settings.basic??20000;
+  document.getElementById('setNetTarget').value=settings.netTarget??3000;
+  document.getElementById('setPension').value=settings.pension??0;
+  document.getElementById('setOtherDed').value=settings.otherDed??0;
+  document.getElementById('setTargetMonth').value=currentMonthKey();
+  document.getElementById('setMonthTarget').value=monthTarget(currentMonthKey())||'';
+  setTheme(settings.theme||'dark');
+}
+
+function exportJSON(){
+  const payload={version:7,deals,tasks,settings,exported:new Date().toISOString()};
+  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='pentagon-sales-'+todayKey()+'.json';a.click();
+}
+function exportCSV(){
+  const headers=['Customer','Phone','Email','Vehicle','Stock/Reg','Type','Stage','Lead Date','Order Date','Expected Delivery','Delivery Date','Finance Payout','F&I','Earned Commission','Expected Next Pay','CSI','Notes'];
+  const rows=deals.map(d=>{
+    const ev=eventDefs(d),earned=ev.reduce((s,e)=>s+eligibleEvent(d,e),0),expected=ev.reduce((s,e)=>s+(e.payMonth===payMonthForCurrent()?Math.max(0,eligibleEvent(d,e)-eventPaid(d,e)):0),0);
+    const note=(d.journal||[]).map(x=>x.text).join(' | ');
+    return [d.customer,d.phone,d.email,d.vehicle,d.stock,STAGE_LABELS[d.stage]||d.stage,d.stage,d.leadDate,d.orderDate,d.expectedDeliveryDate,d.deliveryDate,d.financePayoutDate,(d.fi||[]).map(k=>FI_LABELS[k]).join('; '),earned,expected,d.csi??'',note].map(x=>'"'+String(x??'').replace(/"/g,'""')+'"').join(',');
+  });
+  const blob=new Blob([[headers.join(','),...rows].join('\n')],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='pentagon-sales-deals-'+todayKey()+'.csv';a.click();
+}
+function importData(e){
+  const file=e.target.files?.[0];if(!file)return;const r=new FileReader();r.onload=ev=>{
+    try{const x=JSON.parse(ev.target.result);deals=(x.deals||[]).map(migrateDeal);tasks=Array.isArray(x.tasks)?x.tasks:tasks;settings={...settings,...(x.settings||{})};persist();loadSettingsUI();refreshAll();alert('Imported '+deals.length+' deals.')}catch(err){alert('Invalid JSON backup.')}
+  };r.readAsText(file);
+}
+function clearAll(){deals=[];tasks=[];localStorage.removeItem('ps_deals');localStorage.removeItem('ps_tasks');persist();refreshAll();cloudSave()}
+
+/* Existing Supabase/local sync retained. */
+function getSbCreds(){return{url:localStorage.getItem('ps_sb_url')||'',key:localStorage.getItem('ps_sb_key')||''};}
+function setSyncStatus(state,text){const el=document.getElementById('syncStatus');if(!el)return;el.className='sync '+state;el.textContent=text;}
+function initSupabase(){
+  const {url,key}=getSbCreds();if(!url||!key){setSyncStatus('offline','Local only');return;}
+  document.getElementById('sbUrl').value=url;document.getElementById('sbKey').value=key;
+  try{sb=supabase.createClient(url,key);setSyncStatus('online','Cloud connected');document.getElementById('btnPull').disabled=false;document.getElementById('btnPush').disabled=false;pullFromCloud(true);}
+  catch(e){sb=null;setSyncStatus('error','Cloud error');}
+}
+async function connectSupabase(){
+  const url=document.getElementById('sbUrl').value.trim(),key=document.getElementById('sbKey').value.trim();if(!url||!key){document.getElementById('cloudMsg').textContent='Enter both values.';return;}
+  localStorage.setItem('ps_sb_url',url);localStorage.setItem('ps_sb_key',key);document.getElementById('cloudMsg').textContent='Connecting...';
+  try{sb=supabase.createClient(url,key);const {error}=await sb.from('deals').select('id').limit(1);if(error)throw error;setSyncStatus('online','Cloud connected');document.getElementById('btnPull').disabled=false;document.getElementById('btnPush').disabled=false;await pullFromCloud();}catch(e){sb=null;setSyncStatus('error','Cloud error');document.getElementById('cloudMsg').textContent='Failed: '+(e.message||e);}
+}
+function disconnectSupabase(){localStorage.removeItem('ps_sb_url');localStorage.removeItem('ps_sb_key');sb=null;setSyncStatus('offline','Local only');document.getElementById('btnPull').disabled=true;document.getElementById('btnPush').disabled=true;document.getElementById('cloudMsg').textContent='Disconnected.';}
+async function pushToCloud(){
+  if(!sb)return;document.getElementById('cloudMsg').textContent='Pushing...';
+  try{const {error}=await sb.from('deals').upsert({id:'state',data:{deals,tasks,settings,updated:new Date().toISOString()},updated_at:new Date().toISOString()});if(error)throw error;document.getElementById('cloudMsg').textContent='Pushed '+deals.length+' deals / '+tasks.length+' tasks.';setSyncStatus('online','Cloud synced');}
+  catch(e){document.getElementById('cloudMsg').textContent='Push failed: '+(e.message||e);setSyncStatus('error','Sync error');}
+}
+async function pullFromCloud(silent){
+  if(!sb)return;if(!silent)document.getElementById('cloudMsg').textContent='Pulling...';
+  try{const {data,error}=await sb.from('deals').select('data').eq('id','state').single();if(error&&error.code!=='PGRST116')throw error;
+    if(data?.data){deals=(data.data.deals||[]).map(migrateDeal);tasks=Array.isArray(data.data.tasks)?data.data.tasks:tasks;settings={...settings,...(data.data.settings||{})};persist();loadSettingsUI();refreshAll();if(!silent)document.getElementById('cloudMsg').textContent='Pulled '+deals.length+' deals / '+tasks.length+' tasks.';setSyncStatus('online','Cloud synced');}
+    else if(!silent)document.getElementById('cloudMsg').textContent='No cloud state yet — push to create it.';
+  }catch(e){if(!silent)document.getElementById('cloudMsg').textContent='Pull failed: '+(e.message||e);setSyncStatus('error','Sync error');}
+}
+async function cloudSave(){if(sb)await pushToCloud();}
+
+function refreshAll(){
+  renderSummary();renderDashboard();renderWork();renderDeals();renderCommission();renderPerformance();loadSettingsUI();
+  if(typeof renderFiConversion==='function')renderFiConversion();
+}
+document.querySelectorAll('.tab').forEach(tab=>tab.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.section').forEach(x=>x.classList.remove('active'));
+  tab.classList.add('active');document.getElementById('sec-'+tab.dataset.tab).classList.add('active');
+  refreshAll();
+}));
+document.getElementById('fType').addEventListener('change',()=>buildFiChecks([...document.querySelectorAll('input[name="fi"]:checked')].map(x=>x.value)));
+
+function init(){
+  loadSettingsUI();buildFiChecks([]);refreshAll();initSupabase();
+  if(typeof showPlay==='function')showPlay('route');
+}
+init();

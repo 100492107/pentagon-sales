@@ -173,10 +173,11 @@ label{font-size:10px;color:var(--muted);font-weight:700;display:block;margin-bot
       <div class="card"><h2>Monthly unit target</h2>
         <div class="formgrid">
           <div><label>Month</label><input class="input" type="month" id="setTargetMonth"></div>
-          <div><label>Target units</label><input class="input" type="number" min="1" id="setMonthTarget" placeholder="Only enter if known"></div>
+          <div><label>Combined unit target</label><input class="input" type="number" min="1" id="setMonthTarget" placeholder="Only enter if known"></div>
+          <div><label>New-vehicle delivery target</label><input class="input" type="number" min="1" id="setNewVehicleTarget" placeholder="Only enter if known"></div>
         </div>
-        <div class="toolbar" style="margin-top:10px"><button class="btn primary" onclick="saveMonthTarget()">Save target</button><button class="btn" onclick="clearMonthTarget()">Clear target</button></div>
-        <div class="note" style="margin-top:9px">The scheme confirms a 160-unit annual target. It does not state a fixed 14-car monthly target, so this field stays blank until you know your actual monthly target.</div>
+        <div class="toolbar" style="margin-top:10px"><button class="btn primary" onclick="saveMonthTarget()">Save targets</button><button class="btn" onclick="clearMonthTarget()">Clear targets</button></div>
+        <div class="note" style="margin-top:9px">The scheme confirms a 160-unit combined annual target. It does not state a fixed monthly target. The separate new-vehicle target is used only for the scheme's 20% monthly commission reduction.</div>
       </div>
     </div>
     <div class="card" style="margin-top:12px"><h2>Data</h2><div class="toolbar"><button class="btn" onclick="exportJSON()">Export JSON</button><button class="btn" onclick="exportCSV()">Export CSV</button><button class="btn" onclick="document.getElementById('importFile').click()">Import JSON</button><button class="btn danger" onclick="if(confirm('Delete all local deals and tasks?')) clearAll()">Delete all</button></div></div>
@@ -219,6 +220,17 @@ label{font-size:10px;color:var(--muted);font-weight:700;display:block;margin-bot
     <div class="grid g2">
       <div><h2>Commission events</h2><div id="dealEvents"></div></div>
       <div><h2>Diary</h2><div id="dealDiary" class="diary"></div><div style="margin-top:8px"><textarea id="fDiary" rows="3" placeholder="Add a dated note to your personal deal diary..."></textarea><button type="button" class="btn" style="margin-top:6px" onclick="addDiaryEntry()">Add diary note</button></div></div>
+    </div>
+    <div class="card" style="margin-top:12px;box-shadow:none;background:var(--card2)">
+      <h2>Manual commission adjustments</h2>
+      <div id="dealAdjustments"></div>
+      <div class="formgrid three" style="margin-top:8px">
+        <div><label>Adjustment amount</label><input class="input" type="number" step="0.01" id="adjAmount" placeholder="-60 or +60"></div>
+        <div><label>Date</label><input class="input" type="date" id="adjDate"></div>
+        <div><label>Reason</label><input class="input" id="adjReason" placeholder="e.g. CSI debit back"></div>
+      </div>
+      <button type="button" class="btn" style="margin-top:7px" onclick="addDealAdjustment()">Add adjustment</button>
+      <div class="note" style="margin-top:6px">Use this only for an adjustment that actually applies. The tracker does not invent debit backs or recoveries.</div>
     </div>
     <div class="divider"></div>
     <div class="card" style="box-shadow:none;background:var(--card2)"><h2>Work for this customer</h2><div id="dealTasks"></div><div class="formgrid three" style="margin-top:7px"><div><label>Task</label><input class="input" id="quickTaskTitle" placeholder="e.g. Call to confirm delivery"></div><div><label>Due</label><input class="input" type="date" id="quickTaskDue"></div><div><label>Type</label><select id="quickTaskType"><option>Call</option><option>SMS</option><option>Email</option><option>Appointment</option><option>Finance</option><option>Delivery</option><option>Admin</option><option>Other</option></select></div></div><button type="button" class="btn" style="margin-top:7px" onclick="addQuickTask()">Add task</button></div>

@@ -118,6 +118,14 @@ function toggleMonthNA(key){
   else settings.naMonths[key]=true;
   persist();refreshAll();cloudSave();
 }
+function openTargetSettings(key){
+  const tab=document.querySelector('.tab[data-tab="settings"]');
+  if(tab)tab.click();
+  const monthEl=document.getElementById('setTargetMonth');
+  if(monthEl)monthEl.value=key;
+  document.getElementById('setMonthTarget').value=monthTarget(key)||'';
+  document.getElementById('setNewVehicleTarget').value=newVehicleTarget(key)||'';
+}
 
 function estimateAnnualNet(grossAnnual){
   const gross=Math.max(0,Number(grossAnnual)||0);
@@ -518,7 +526,8 @@ function renderCommission(){
       '<div class="l">adjusted earned · '+x.units+' delivered</div>'+
       '<div class="l" style="margin-top:3px">gross before scheme reduction: '+money(x.grossEarned)+'</div>'+
       '<div class="l" style="margin-top:4px"><span class="badge '+badgeClass+'">'+esc(status)+'</span></div>'+
-      '<button class="btn sm" style="margin-top:7px" onclick="toggleMonthNA(\''+k+'\')">'+(na?'Mark active':'Set N/A')+'</button></div>';
+      (na||t!==null?'':'<button class="btn sm" style="margin-top:7px" onclick="openTargetSettings(\''+k+'\')">Set target</button>')+
+      '<button class="btn sm" style="margin-top:7px;margin-left:5px" onclick="toggleMonthNA(\''+k+'\')">'+(na?'Mark active':'Set N/A')+'</button></div>';
   }).join('');
   document.getElementById('commissionMonths').innerHTML=boxes;
   const rows=commissionEventRowsForMonth(key);
@@ -550,7 +559,7 @@ function renderPerformance(){
     const s=monthStats(k),t=monthTarget(k),na=monthNA(k);
     const status=na?'N/A':t===null?'Not set':s.units>=t?'Met':'Below';
     const badgeClass=na?'b-gray':status==='Met'?'b-green':status==='Below'?'b-yellow':'b-gray';
-    return '<tr><td><strong>'+esc(monthLabel(k))+'</strong></td><td>'+((t===null||na)?'—':t)+'</td><td>'+s.units+'</td><td>'+s.newUnits+'</td><td>'+s.used+'</td><td>'+s.motab+'</td><td>'+money(s.earned)+'</td><td><span class="badge '+badgeClass+'">'+esc(status)+'</span> <button class="btn sm" style="margin-left:5px" onclick="toggleMonthNA(\''+k+'\')">'+(na?'Mark active':'Set N/A')+'</button></td></tr>';
+    return '<tr><td><strong>'+esc(monthLabel(k))+'</strong></td><td>'+((t===null||na)?'—':t)+'</td><td>'+s.units+'</td><td>'+s.newUnits+'</td><td>'+s.used+'</td><td>'+s.motab+'</td><td>'+money(s.earned)+'</td><td><span class="badge '+badgeClass+'">'+esc(status)+'</span>'+(na||t!==null?'':' <button class="btn sm" onclick="openTargetSettings(\''+k+'\')">Set target</button>')+' <button class="btn sm" style="margin-left:5px" onclick="toggleMonthNA(\''+k+'\')">'+(na?'Mark active':'Set N/A')+'</button></td></tr>';
   }).join('');
   const risk=[];
   deals.forEach(d=>{dealRisk(d).forEach(r=>{risk.push('<div class="statline"><span>'+esc(d.customer||'Unnamed')+' · '+esc(r)+'</span><button class="btn sm" onclick="openDealModal(\''+d.id+'\')">Open</button></div>');});});

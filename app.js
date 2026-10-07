@@ -17,16 +17,17 @@ const FI_LABELS = {
 
 let deals = JSON.parse(localStorage.getItem('ps_deals') || '[]');
 let settings = JSON.parse(localStorage.getItem('ps_settings') || JSON.stringify({
-  basic: 20000, pension: 0, otherDed: 0, theme: 'dark',
-  monthTargets: {}
+  basic: 20000, pension: 0, otherDed: 0, theme: 'dark', monthTargets: {}
 }));
 let sb = null;
 
 function setTheme(t) {
   document.body.setAttribute('data-theme', t);
   settings.theme = t;
-  document.getElementById('themeBtn').textContent = t === 'dark' ? 'Light' : 'Dark';
-  document.getElementById('setTheme').value = t;
+  const btn = document.getElementById('themeBtn');
+  if (btn) btn.textContent = t === 'dark' ? 'Light' : 'Dark';
+  const sel = document.getElementById('setTheme');
+  if (sel) sel.value = t;
   localStorage.setItem('ps_settings', JSON.stringify(settings));
 }
 function toggleTheme() {
@@ -38,19 +39,24 @@ function getSbCreds() {
 }
 function setSyncStatus(state, text) {
   const el = document.getElementById('syncStatus');
+  if (!el) return;
   el.className = 'sync-status ' + state;
   el.textContent = text;
 }
 function initSupabase() {
   const { url, key } = getSbCreds();
   if (!url || !key) { setSyncStatus('offline', 'Local only'); return; }
-  document.getElementById('sbUrl').value = url;
-  document.getElementById('sbKey').value = key;
+  const u = document.getElementById('sbUrl');
+  const k = document.getElementById('sbKey');
+  if (u) u.value = url;
+  if (k) k.value = key;
   try {
     sb = supabase.createClient(url, key);
     setSyncStatus('online', 'Cloud connected');
-    document.getElementById('btnPull').disabled = false;
-    document.getElementById('btnPush').disabled = false;
+    const bp = document.getElementById('btnPull');
+    const bpush = document.getElementById('btnPush');
+    if (bp) bp.disabled = false;
+    if (bpush) bpush.disabled = false;
     pullFromCloud(true);
   } catch (e) { setSyncStatus('error', 'Cloud error'); sb = null; }
 }
@@ -174,7 +180,6 @@ function monthLabel(key) {
   const [y,m] = key.split('-');
   return new Date(+y, +m-1, 1).toLocaleString('en-GB', { month: 'short', year: 'numeric' });
 }
-
 function getMonthStats(key) {
   let units = 0, comm = 0, orders = 0, fiTotal = 0, fiCount = 0;
   const byType = { 'new-retail': 0, 'new-motab': 0, used: 0 };
@@ -188,10 +193,8 @@ function getMonthStats(key) {
   });
   return { units, comm, orders, deliveries: units, fiTotal, fiCount, byType, avgFi: fiCount ? fiTotal/fiCount : 0 };
 }
-
 function getMonthTarget(key) {
-  const targets = settings.monthTargets || {};
-  return targets[key] || 14;
+  return (settings.monthTargets || {})[key] || 14;
 }
 
 function renderFiChecks(selected) {
@@ -209,24 +212,22 @@ function refreshAll() {
   renderDashboard();
   renderHistory();
   renderInsight();
-  renderWeeklyReminder();
+  if (typeof renderWeeklyReminder === 'function') renderWeeklyReminder();
+  if (typeof renderFiConversion === 'function') renderFiConversion();
+  if (typeof renderFireNote === 'function') renderFireNote();
 }
 
 function updateSummary() {
   const nowKey = currentMonthKey();
   const stats = getMonthStats(nowKey);
   let yearUnits = 0;
-  deals.forEach(d => {
-    if (d.status === 'delivery' || d.status === 'both') yearUnits++;
-  });
-
+  deals.forEach(d => { if (d.status === 'delivery' || d.status === 'both') yearUnits++; });
   document.getElementById('monthComm').textContent = '£' + stats.comm.toLocaleString();
   document.getElementById('monthUnits').textContent = stats.units + ' units delivered';
   const target = getMonthTarget(nowKey);
   document.getElementById('unitTargetStat').textContent = stats.units + ' / ' + target;
-  document.getElementById('unitTargetLabel').textContent = stats.units >= target ? 'Target met' : (target - stats.units) + ' more to target';
+  document.getElementById('unitTargetLabel').textContent = stats.units >= target ? (stats.units > target ? 'Beaten by ' + (stats.units - target) + '!' : 'Target met') : (target - stats.units) + ' more to target';
   document.getElementById('unitProg').style.width = Math.min(100, (stats.units / target) * 100) + '%';
-
   document.getElementById('yearUnitsStat').textContent = yearUnits + ' / 160';
   let bonusLabel = 'Need 160 for £1,000';
   if (yearUnits >= 240) bonusLabel = '240+ → £4,000';
@@ -235,29 +236,24 @@ function updateSummary() {
   else bonusLabel = (160 - yearUnits) + ' more for £1,000';
   document.getElementById('bonusLabel').textContent = bonusLabel;
   document.getElementById('yearProg').style.width = Math.min(100, (yearUnits / 160) * 100) + '%';
-
   const basicM = (settings.basic || 20000) / 12;
   const th = estimateTakeHome((basicM + stats.comm) * 12) / 12;
   const thEl = document.getElementById('takeHomeNow');
   thEl.textContent = '£' + Math.round(th).toLocaleString();
   thEl.className = 'stat ' + (th >= 3000 ? 'green' : th >= 2500 ? 'yellow' : 'red');
-
   const grossNeeded = calcGrossForTakeHome(3000);
   const commNeeded = Math.max(0, Math.round(grossNeeded / 12 - basicM));
   settings._commNeeded = commNeeded;
   document.getElementById('grossNeeded').textContent = '£' + Math.round(grossNeeded / 12).toLocaleString();
   document.getElementById('commNeeded').textContent = '£' + commNeeded.toLocaleString();
   document.getElementById('monthProg').style.width = Math.min(100, (stats.comm / (commNeeded || 1)) * 100) + '%';
-
   const gap = Math.max(0, commNeeded - stats.comm);
   const pathEl = document.getElementById('pathToTarget');
-  if (gap <= 0) {
-    pathEl.innerHTML = '<span style="color:var(--green);font-weight:600;">You are on track for £3,000+ take-home this month.</span>';
-  } else {
+  if (gap <= 0) pathEl.innerHTML = '<span style="color:var(--green);font-weight:600;">You are on track for £3,000+ take-home this month.</span>';
+  else {
     const avgFiUsed = stats.avgFi || 100;
-    const perUsed = 60 + avgFiUsed;
-    const carsNeeded = Math.ceil(gap / Math.max(perUsed, 80));
-    pathEl.innerHTML = 'Need <strong style="color:var(--text)">£' + gap.toLocaleString() + '</strong> more commission ≈ <strong style="color:var(--text)">' + carsNeeded + ' more used cars</strong> with typical F&amp;I (or mix of new + products).';
+    const carsNeeded = Math.ceil(gap / Math.max(60 + avgFiUsed, 80));
+    pathEl.innerHTML = 'Need <strong style="color:var(--text)">£' + gap.toLocaleString() + '</strong> more commission ≈ <strong style="color:var(--text)">' + carsNeeded + ' more used cars</strong> with typical F&amp;I.';
   }
 }
 
@@ -270,16 +266,13 @@ function renderDashboard() {
   if (stats.byType.used) parts.push(stats.byType.used + ' Used');
   parts.push(stats.orders + ' orders logged');
   if (stats.fiCount) parts.push('Avg F&amp;I £' + Math.round(stats.avgFi) + ' on ' + stats.fiCount + ' deals');
-  document.getElementById('dashBreakdown').innerHTML = parts.length ? parts.map(p => '• ' + p).join('<br>') : 'No activity this month yet.';
-
+  document.getElementById('dashBreakdown').innerHTML = parts.length ? parts.map(p => '• ' + p).join('<br>') : 'No activity this month yet. First deal of the day sets the tone.';
   const awaiting = deals.filter(d => d.status === 'order');
   const awEl = document.getElementById('awaitingList');
-  if (!awaiting.length) awEl.textContent = 'None - all orders delivered or none logged.';
+  if (!awaiting.length) awEl.textContent = 'None — all clear.';
   else awEl.innerHTML = awaiting.map(d => {
     const c = calcDealComm(d);
-    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;margin-bottom:0.35rem;">' +
-      '<span>' + (d.customer || 'Deal') + ' (' + d.date + ') - order comm £' + c.vehicle + '</span>' +
-      '<button class="btn-green btn-sm" onclick="markDelivered(\'' + d.id + '\')">Mark delivered</button></div>';
+    return '<div style="display:flex;justify-content:space-between;align-items:center;gap:0.5rem;margin-bottom:0.35rem;"><span>' + (d.customer || 'Deal') + ' (' + d.date + ') — order £' + c.vehicle + '</span><button class="btn-green btn-sm" onclick="markDelivered(\'' + d.id + '\')">Mark delivered</button></div>';
   }).join('');
 }
 
@@ -298,16 +291,7 @@ function renderDeals() {
     const stLabel = d.status === 'order' ? 'Order' : d.status === 'delivery' ? 'Delivery' : 'Both';
     const fiStr = (d.fi || []).map(p => FI_LABELS[p] || p).join(', ') || '—';
     const delBtn = d.status === 'order' ? '<button class="btn-green btn-sm" onclick="markDelivered(\'' + d.id + '\')">Delivered</button> ' : '';
-    return '<tr>' +
-      '<td>' + d.date + '</td>' +
-      '<td>' + (d.customer || '—') + '</td>' +
-      '<td><span class="tag ' + typeTag + '">' + typeLabel + '</span></td>' +
-      '<td><span class="tag ' + stTag + '">' + stLabel + '</span></td>' +
-      '<td style="font-size:0.7rem">' + fiStr + '</td>' +
-      '<td>£' + c.total + (c.clawed ? ' <span style="color:var(--red)">(CSI)</span>' : '') + '</td>' +
-      '<td style="white-space:nowrap">' + delBtn +
-        '<button class="btn-secondary btn-sm" onclick="startEdit(\'' + d.id + '\')">Edit</button> ' +
-        '<button class="btn-secondary btn-sm" onclick="deleteDeal(\'' + d.id + '\')">×</button></td></tr>';
+    return '<tr><td>' + d.date + '</td><td>' + (d.customer || '—') + '</td><td><span class="tag ' + typeTag + '">' + typeLabel + '</span></td><td><span class="tag ' + stTag + '">' + stLabel + '</span></td><td style="font-size:0.7rem">' + fiStr + '</td><td>£' + c.total + (c.clawed ? ' <span style="color:var(--red)">(CSI)</span>' : '') + '</td><td style="white-space:nowrap">' + delBtn + '<button class="btn-secondary btn-sm" onclick="startEdit(\'' + d.id + '\')">Edit</button> <button class="btn-secondary btn-sm" onclick="deleteDeal(\'' + d.id + '\')">×</button></td></tr>';
   }).join('');
 }
 
@@ -323,22 +307,18 @@ function renderHistory() {
     const th = estimateTakeHome((basicM + s.comm) * 12) / 12;
     return '<div class="hist-row"><div><strong>' + monthLabel(k) + '</strong></div><div>' + s.units + ' units</div><div>£' + s.comm.toLocaleString() + '</div><div class="hide-m">£' + Math.round(th).toLocaleString() + '</div></div>';
   }).join('');
-
   const prev = prevMonthKey();
   const ps = getMonthStats(prev);
   const insightEl = document.getElementById('lastMonthInsight');
-  if (ps.units === 0 && ps.comm === 0) {
-    insightEl.textContent = 'No deals logged for last month yet.';
-  } else {
+  if (ps.units === 0 && ps.comm === 0) insightEl.textContent = 'No deals logged for last month yet.';
+  else {
     const bits = [];
     bits.push('You delivered <strong style="color:var(--text)">' + ps.units + ' units</strong> and earned <strong style="color:var(--text)">£' + ps.comm.toLocaleString() + '</strong> commission.');
-    if (ps.byType.used) bits.push('Used cars: ' + ps.byType.used + ' (strong F&amp;I potential).');
-    if (ps.byType['new-retail'] || ps.byType['new-motab']) bits.push('New: ' + ((ps.byType['new-retail']||0)+(ps.byType['new-motab']||0)) + '.');
-    if (ps.avgFi > 0) bits.push('Average F&amp;I per deal with products: £' + Math.round(ps.avgFi) + '.');
-    if (ps.orders > ps.units) bits.push((ps.orders - ps.units) + ' order(s) still awaiting delivery at month end.');
+    if (ps.byType.used) bits.push('Used: ' + ps.byType.used + '.');
+    if (ps.avgFi > 0) bits.push('Avg F&amp;I £' + Math.round(ps.avgFi) + '.');
     const target = getMonthTarget(prev);
     if (ps.units >= target) bits.push('You hit your unit target of ' + target + '.');
-    else bits.push('Unit target was ' + target + ' - you finished at ' + ps.units + '.');
+    else bits.push('Target was ' + target + ' — finished at ' + ps.units + '.');
     insightEl.innerHTML = bits.join(' ');
   }
 }
@@ -349,110 +329,17 @@ function renderInsight() {
   const ps = getMonthStats(prev);
   if (ps.units === 0 && ps.comm === 0) { box.style.display = 'none'; return; }
   box.style.display = 'block';
-  box.innerHTML = '<strong>Last month (' + monthLabel(prev) + '):</strong> ' + ps.units + ' units · £' + ps.comm.toLocaleString() + ' commission' +
-    (ps.avgFi > 0 ? ' · avg F&amp;I £' + Math.round(ps.avgFi) : '') +
-    (ps.units >= getMonthTarget(prev) ? ' · target hit' : '');
+  box.innerHTML = '<strong>Last month (' + monthLabel(prev) + '):</strong> ' + ps.units + ' units · £' + ps.comm.toLocaleString() + ' commission' + (ps.units >= getMonthTarget(prev) ? ' · target hit' : '');
 }
 
 async function markDelivered(id) {
   const d = deals.find(x => x.id === id);
   if (!d || d.status !== 'order') return;
-  if (!confirm('Mark "' + (d.customer || 'this deal') + '" as delivered? This adds delivery commission.')) return;
+  if (!confirm('Mark "' + (d.customer || 'this deal') + '" as delivered? Adds delivery commission.')) return;
   d.status = 'both';
   localStorage.setItem('ps_deals', JSON.stringify(deals));
   refreshAll();
   await cloudSave();
-}
-
-function getWeeklyReminderText() {
-  const nowKey = currentMonthKey();
-  const stats = getMonthStats(nowKey);
-  const target = getMonthTarget(nowKey);
-  const remaining = Math.max(0, target - stats.units);
-  const today = new Date();
-  const daysInMonth = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
-  const daysLeft = daysInMonth - today.getDate() + 1;
-  const weeksLeft = Math.max(1, Math.ceil(daysLeft / 7));
-  const perWeek = remaining > 0 ? Math.ceil(remaining / weeksLeft) : 0;
-  const basicM = (settings.basic || 20000) / 12;
-  const th = estimateTakeHome((basicM + stats.comm) * 12) / 12;
-  const gap = Math.max(0, (settings._commNeeded || 2093) - stats.comm);
-
-  let text = 'Pentagon weekly check-in (' + monthLabel(nowKey) + '):\n';
-  text += '- Units so far: ' + stats.units + ' / ' + target + '\n';
-  text += '- Commission: £' + stats.comm.toLocaleString() + '\n';
-  text += '- Est. take-home: £' + Math.round(th).toLocaleString() + '\n';
-  if (remaining > 0) text += '- Still need: ' + remaining + ' units (~' + perWeek + ' this week, ' + daysLeft + ' days left)\n';
-  else text += '- Unit target met. Keep building F&I.\n';
-  if (gap > 0) text += '- To hit £3k take-home: ~£' + gap.toLocaleString() + ' more commission\n';
-  else text += '- On track for £3k+ take-home this month\n';
-  text += '- Awaiting delivery: ' + deals.filter(d => d.status === 'order').length;
-  return text;
-}
-
-function renderWeeklyReminder() {
-  const el = document.getElementById('weeklyReminder');
-  if (!el) return;
-  const nowKey = currentMonthKey();
-  const stats = getMonthStats(nowKey);
-  const target = getMonthTarget(nowKey);
-  const remaining = Math.max(0, target - stats.units);
-  const today = new Date();
-  const daysInMonth = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
-  const daysLeft = daysInMonth - today.getDate() + 1;
-  const weeksLeft = Math.max(1, Math.ceil(daysLeft / 7));
-  const perWeek = remaining > 0 ? Math.ceil(remaining / weeksLeft) : 0;
-  if (remaining <= 0) {
-    el.innerHTML = 'Unit target met for this month. Focus on F&amp;I and quality handovers.';
-  } else {
-    el.innerHTML = 'Need <strong style="color:var(--text)">' + remaining + ' more units</strong> this month. ' +
-      'That is about <strong style="color:var(--text)">' + perWeek + ' this week</strong> (' + daysLeft + ' days left).';
-  }
-}
-
-function copyWeeklyReminder() {
-  const text = getWeeklyReminderText();
-  navigator.clipboard.writeText(text).then(() => {
-    alert('Weekly reminder copied - paste into Notes or Messages.');
-  }).catch(() => {
-    prompt('Copy this text:', text);
-  });
-}
-
-function exportPDF() {
-  const nowKey = currentMonthKey();
-  const stats = getMonthStats(nowKey);
-  const target = getMonthTarget(nowKey);
-  const basicM = (settings.basic || 20000) / 12;
-  const th = estimateTakeHome((basicM + stats.comm) * 12) / 12;
-  const monthDeals = deals.filter(d => monthKey(d.date) === nowKey).sort((a,b) => a.date.localeCompare(b.date));
-  let rows = monthDeals.map(d => {
-    const c = calcDealComm(d);
-    const type = d.type === 'used' ? 'Used' : d.type === 'new-motab' ? 'Motab' : 'New';
-    return '<tr><td>' + d.date + '</td><td>' + (d.customer||'') + '</td><td>' + type + '</td><td>' + d.status + '</td><td>£' + c.total + '</td></tr>';
-  }).join('');
-  const w = window.open('', '_blank');
-  w.document.write('<!DOCTYPE html><html><head><title>Pentagon ' + monthLabel(nowKey) + '</title>' +
-  '<style>body{font-family:system-ui,sans-serif;padding:24px;color:#111;max-width:800px;margin:0 auto}' +
-  'h1{font-size:18px;margin:0 0 4px}.sub{color:#666;font-size:12px;margin-bottom:20px}' +
-  '.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px}' +
-  '.box{border:1px solid #ddd;border-radius:8px;padding:12px}.box .n{font-size:22px;font-weight:700}.box .l{font-size:11px;color:#666}' +
-  'table{width:100%;border-collapse:collapse;font-size:12px}th,td{text-align:left;padding:6px 4px;border-bottom:1px solid #eee}' +
-  'th{font-size:10px;text-transform:uppercase;color:#666}footer{margin-top:24px;font-size:10px;color:#999}' +
-  '@media print{button{display:none}}</style></head><body>' +
-  '<button onclick="window.print()" style="margin-bottom:16px;padding:8px 14px;cursor:pointer">Print / Save as PDF</button>' +
-  '<h1>Pentagon Motor Group - Monthly summary</h1>' +
-  '<div class="sub">' + monthLabel(nowKey) + ' · Sales Consultant commission record</div>' +
-  '<div class="grid">' +
-  '<div class="box"><div class="n">' + stats.units + ' / ' + target + '</div><div class="l">Units delivered</div></div>' +
-  '<div class="box"><div class="n">£' + stats.comm.toLocaleString() + '</div><div class="l">Commission</div></div>' +
-  '<div class="box"><div class="n">£' + Math.round(th).toLocaleString() + '</div><div class="l">Est. take-home</div></div>' +
-  '</div>' +
-  '<table><thead><tr><th>Date</th><th>Customer</th><th>Type</th><th>Status</th><th>Comm</th></tr></thead>' +
-  '<tbody>' + (rows || '<tr><td colspan="5">No deals this month</td></tr>') + '</tbody></table>' +
-  '<footer>Private record · Generated ' + new Date().toLocaleString('en-GB') + ' · Not an official payslip</footer>' +
-  '</body></html>');
-  w.document.close();
 }
 
 function startEdit(id) {
@@ -498,9 +385,7 @@ async function addDeal(e) {
   if (editId) {
     const idx = deals.findIndex(d => d.id === editId);
     if (idx >= 0) deals[idx] = payload;
-  } else {
-    deals.push(payload);
-  }
+  } else deals.push(payload);
   localStorage.setItem('ps_deals', JSON.stringify(deals));
   cancelEdit();
   refreshAll();
@@ -521,7 +406,6 @@ async function clearDeals() {
   refreshAll();
   await cloudSave();
 }
-
 function saveMonthTarget() {
   const key = document.getElementById('setTargetMonth').value || currentMonthKey();
   const val = parseInt(document.getElementById('setMonthTarget').value) || 14;
@@ -559,9 +443,8 @@ function runModel() {
   el.className = 'stat ' + (th >= 3000 ? 'green' : th >= 2500 ? 'yellow' : '');
   document.getElementById('modelResult').style.display = 'block';
 }
-
 function exportJSON() {
-  const data = { deals, settings, exported: new Date().toISOString(), version: 5 };
+  const data = { deals, settings, exported: new Date().toISOString(), version: 6 };
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -574,12 +457,15 @@ function exportCSV() {
     const c = calcDealComm(d);
     return [d.date, d.customer||'', d.type, d.status, (d.fi||[]).join(';'), c.vehicle, c.fi, c.total, d.csi??'', d.notes||''].map(x => '"'+String(x).replace(/"/g,'""')+'"').join(',');
   });
-  const csv = [headers.join(','), ...rows].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
+  const blob = new Blob([[headers.join(','), ...rows].join('\n')], { type: 'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'pentagon-deals-' + new Date().toISOString().slice(0,10) + '.csv';
   a.click();
+}
+function exportPDF() {
+  if (typeof window._exportPDFImpl === 'function') return window._exportPDFImpl();
+  alert('PDF module loading — refresh and try again.');
 }
 function importData(e) {
   const file = e.target.files[0];
@@ -619,7 +505,6 @@ document.querySelectorAll('.tab').forEach(tab => {
 });
 document.getElementById('dealType').addEventListener('change', () => renderFiChecks());
 document.getElementById('dealForm').addEventListener('submit', addDeal);
-
 document.getElementById('dealDate').valueAsDate = new Date();
 renderFiChecks();
 loadSettingsUI();

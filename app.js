@@ -534,7 +534,7 @@ function renderPerformance(){
     return `<tr><td><strong>${esc(monthLabel(k))}</strong></td><td>${t===null?'—':t}</td><td>${s.units}</td><td>${s.newUnits}</td><td>${s.used}</td><td>${s.motab}</td><td>${money(s.earned)}</td><td><span class="badge ${status==='Met'?'b-green':status==='Below'?'b-yellow':'b-gray'}">${esc(status)}</span></td></tr>`;
   }).join('');
   const risk=[];
-  deals.forEach(d=>dealRisk(d).forEach(r=>risk.push(`<div class="statline"><span>${esc(d.customer||'Unnamed')} · ${esc(r)}</span><button class="btn sm" onclick="openDealModal('${d.id}')">Open</button></div>`));
+  deals.forEach(d=>{dealRisk(d).forEach(r=>{risk.push('<div class="statline"><span>'+esc(d.customer||'Unnamed')+' · '+esc(r)+'</span><button class="btn sm" onclick="openDealModal(\''+d.id+'\')">Open</button></div>');});});
   document.getElementById('perfRisk').innerHTML=risk.length?risk.join(''):'<div class="empty">No recorded deal-risk flags.</div>';
 }
 

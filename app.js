@@ -558,8 +558,8 @@ function renderPerformance(){
   document.getElementById('performanceBody').innerHTML=annualMonths().map(k=>{
     const s=monthStats(k),t=monthTarget(k),na=monthNA(k);
     const status=na?'N/A':t===null?'Not set':s.units>=t?'Met':'Below';
-    const badgeClass=na?'b-gray':status==='Met'?'b-green':status==='Below'?'b-yellow':'b-gray';
-    return '<tr><td><strong>'+esc(monthLabel(k))+'</strong></td><td>'+((t===null||na)?'—':t)+'</td><td>'+s.units+'</td><td>'+s.newUnits+'</td><td>'+s.used+'</td><td>'+s.motab+'</td><td>'+money(s.earned)+'</td><td><span class="badge '+badgeClass+'">'+esc(status)+'</span>'+(na||t!==null?'':' <button class="btn sm" onclick="openTargetSettings(\''+k+'\')">Set target</button>')+' <button class="btn sm" style="margin-left:5px" onclick="toggleMonthNA(\''+k+'\')">'+(na?'Mark active':'Set N/A')+'</button></td></tr>';
+    const badgeClass=na?'b-purple':status==='Met'?'b-green':status==='Below'?'b-yellow':'b-gray';
+    return '<tr class="'+(na?'na-row':'')+'"><td><strong>'+esc(monthLabel(k))+'</strong></td><td>'+((t===null||na)?'—':t)+'</td><td>'+s.units+'</td><td>'+s.newUnits+'</td><td>'+s.used+'</td><td>'+s.motab+'</td><td>'+money(s.earned)+'</td><td><span class="badge '+badgeClass+'">'+esc(status)+'</span>'+(na||t!==null?'':' <button class="btn sm" onclick="openTargetSettings(\''+k+'\')">Set target</button>')+' <button class="btn sm" style="margin-left:5px" onclick="toggleMonthNA(\''+k+'\')">'+(na?'Mark active':'Set N/A')+'</button></td></tr>';
   }).join('');
   const risk=[];
   deals.forEach(d=>{dealRisk(d).forEach(r=>{risk.push('<div class="statline"><span>'+esc(d.customer||'Unnamed')+' · '+esc(r)+'</span><button class="btn sm" onclick="openDealModal(\''+d.id+'\')">Open</button></div>');});});

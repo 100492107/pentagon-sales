@@ -74,13 +74,26 @@ label{font-size:10px;color:var(--muted);font-weight:700;display:block;margin-bot
   .deals-mobile{display:grid;gap:8px}
   .deal-card{display:block;border:1px solid var(--border);background:var(--card2);border-radius:10px;padding:11px}
   body{overflow-x:hidden;-webkit-text-size-adjust:100%}
-  header{padding:10px 12px;gap:9px;position:sticky;top:0}
+  header{
+    display:grid;
+    grid-template-columns:minmax(0,1fr);
+    gap:8px;
+    padding:9px 10px;
+    position:sticky;
+    top:0;
+    align-items:stretch;
+    overflow:hidden;
+  }
+  header>.brand,
+  header>.header-actions{width:100%;min-width:0;max-width:100%}
+  header>.brand{display:flex;align-items:center}
   .brand{min-width:0;flex:1}
   .brandmark{width:36px;height:36px;flex:0 0 36px}
   .brand h1{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .brand p{font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .header-actions{width:auto;flex:0 0 auto;gap:5px;justify-content:flex-end}
-  .header-actions .sync{display:none}
+  .header-actions{width:100%;flex:0 0 100%;display:flex;flex-wrap:nowrap;gap:5px;justify-content:flex-start;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;padding-bottom:1px}
+  .header-actions::-webkit-scrollbar{display:none}
+  .header-actions .sync{display:inline-flex}
   .header-actions .btn,.header-actions .btn.sm{min-height:40px;padding:7px 9px;font-size:10px}
   .header-actions .btn{white-space:nowrap}
   .wrap{padding:10px}
@@ -268,7 +281,14 @@ header{
 .commission-rates{overflow:hidden}
 .mobile-quick .btn{box-shadow:0 6px 18px rgba(0,0,0,.08)}
 @media(max-width:650px){
-  header{padding:9px 10px}
+  header{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr)!important;
+    width:100%;
+    overflow:hidden;
+  }
+  header>.brand,header>.header-actions{width:100%!important;max-width:100%!important;min-width:0!important}
+  .header-actions{flex-wrap:nowrap!important;overflow-x:auto!important;justify-content:flex-start!important}
   .wrap{padding:10px 10px 24px}
   .tabs{
     box-shadow:none;

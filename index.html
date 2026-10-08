@@ -284,6 +284,52 @@ header{
 @media(prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
 }
+/* Final mobile layout guardrails */
+@media(max-width:650px){
+  *,*::before,*::after{box-sizing:border-box}
+  .grid,.g2,.g3,.g4,.formgrid,.formgrid.three{
+    width:100%;
+    min-width:0;
+  }
+  .g2,.g3,.g4,.formgrid,.formgrid.three{
+    grid-template-columns:minmax(0,1fr)!important;
+  }
+  .grid>*{min-width:0}
+  .target .grid{gap:8px}
+  .target .stat{font-size:23px;white-space:normal;overflow-wrap:anywhere}
+  .topline>div{min-width:0;max-width:calc(100% - 84px)}
+  .topline>.btn,.topline>a{flex:0 0 auto}
+  .toolbar{width:100%;max-width:100%;min-width:0}
+  .toolbar>.btn,.toolbar>a.btn{flex:0 1 auto;max-width:100%}
+  .toolbar .input,.toolbar select{flex:1 1 100%;width:100%;max-width:none}
+  .header-actions{min-width:0}
+  .header-actions .btn{flex:0 0 auto}
+  .tabs{min-width:0}
+  .tablewrap{width:100%;max-width:100%;overflow-x:auto}
+  .table{min-width:720px}
+  .month-grid{grid-template-columns:minmax(0,1fr)!important}
+  .monthbox{width:100%;min-width:0}
+  .deal-card{width:100%;min-width:0;overflow:hidden}
+  .deal-card-head>div{min-width:0}
+  .deal-card-name,.deal-card .small,.deal-card-next{
+    overflow-wrap:anywhere;
+    word-break:break-word;
+  }
+  .deal-card-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .deal-card-grid>div{min-width:0;overflow:hidden}
+  .deal-card-grid strong{overflow-wrap:anywhere}
+  .checks{width:100%;min-width:0}
+  .check{max-width:100%;min-width:0}
+  .check input{flex:0 0 auto}
+  .modal{padding:4px!important}
+  .modalbox{width:100%!important;max-width:100%!important;min-width:0!important;overflow-x:hidden}
+  .modalbody{overflow-x:hidden}
+  .event{min-width:0;overflow:hidden}
+  .eventline{min-width:0}
+  .eventline .eventtitle{min-width:0;overflow-wrap:anywhere}
+  .statline{min-width:0}
+  .statline>span{overflow-wrap:anywhere}
+}
 </style>
 </head>
 <body data-theme="dark">

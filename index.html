@@ -304,276 +304,71 @@ header{
 @media(prefers-reduced-motion:reduce){
   html{scroll-behavior:auto}
 }
-/* Final mobile layout guardrails */
 @media(max-width:650px){
-  *,*::before,*::after{box-sizing:border-box}
-  .grid,.g2,.g3,.g4,.formgrid,.formgrid.three{
-    width:100%;
+  header{
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:stretch!important;
+    justify-content:flex-start!important;
+    width:100%!important;
+    max-width:100%!important;
+    padding:9px 10px 10px!important;
+    gap:8px!important;
+    overflow:hidden!important;
+  }
+  header>.brand{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    flex:0 0 auto!important;
+    display:flex!important;
+    align-items:center!important;
+  }
+  header>.brand .brandmark{
+    width:38px!important;
+    height:38px!important;
+    flex:0 0 38px!important;
+  }
+  header>.brand h1{
     min-width:0;
+    max-width:100%;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
   }
-  .g2,.g3,.g4,.formgrid,.formgrid.three{
-    grid-template-columns:minmax(0,1fr)!important;
+  header>.brand p{
+    min-width:0;
+    max-width:100%;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
   }
-  .grid>*{min-width:0}
-  .target .grid{gap:8px}
-  .target .stat{font-size:23px;white-space:normal;overflow-wrap:anywhere}
-  .topline>div{min-width:0;max-width:calc(100% - 84px)}
-  .topline>.btn,.topline>a{flex:0 0 auto}
-  .toolbar{width:100%;max-width:100%;min-width:0}
-  .toolbar>.btn,.toolbar>a.btn{flex:0 1 auto;max-width:100%}
-  .toolbar .input,.toolbar select{flex:1 1 100%;width:100%;max-width:none}
-  .header-actions{min-width:0}
-  .header-actions .btn{flex:0 0 auto}
-  .tabs{min-width:0}
-  .tablewrap{width:100%;max-width:100%;overflow-x:auto}
-  .table{min-width:720px}
-  .month-grid{grid-template-columns:minmax(0,1fr)!important}
-  .monthbox{width:100%;min-width:0}
-  .deal-card{width:100%;min-width:0;overflow:hidden}
-  .deal-card-head>div{min-width:0}
-  .deal-card-name,.deal-card .small,.deal-card-next{
-    overflow-wrap:anywhere;
-    word-break:break-word;
+  header>.header-actions{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    flex:0 0 auto!important;
+    display:flex!important;
+    flex-wrap:nowrap!important;
+    align-items:center!important;
+    justify-content:flex-start!important;
+    gap:5px!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    padding:0 0 1px!important;
+    scrollbar-width:none!important;
   }
-  .deal-card-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .deal-card-grid>div{min-width:0;overflow:hidden}
-  .deal-card-grid strong{overflow-wrap:anywhere}
-  .checks{width:100%;min-width:0}
-  .check{max-width:100%;min-width:0}
-  .check input{flex:0 0 auto}
-  .modal{padding:4px!important}
-  .modalbox{width:100%!important;max-width:100%!important;min-width:0!important;overflow-x:hidden}
-  .modalbody{overflow-x:hidden}
-  .event{min-width:0;overflow:hidden}
-  .eventline{min-width:0}
-  .eventline .eventtitle{min-width:0;overflow-wrap:anywhere}
-  .statline{min-width:0}
-  .statline>span{overflow-wrap:anywhere}
+  header>.header-actions::-webkit-scrollbar{display:none}
+  header>.header-actions .sync{
+    display:inline-flex!important;
+    flex:0 0 auto!important;
+  }
+  header>.header-actions .btn,
+  header>.header-actions .btn.sm{
+    flex:0 0 auto!important;
+    min-height:40px!important;
+    white-space:nowrap!important;
+  }
+  .wrap{padding:10px 10px 24px!important}
 }
 </style>
-</head>
-<body data-theme="dark">
-<header>
-  <div class="brand"><img class="brandmark" src="/assets/joedoes-icon.jpg" alt="JoeDoesCars logo"><div><h1>My Sales HQ</h1><p>JOEDOESCARS · PERSONAL CAR SALES</p></div></div>
-  <div class="header-actions">
-    <span class="sync" id="syncStatus">Local only</span>
-    <button class="btn sm" id="themeBtn" onclick="toggleTheme()">Light</button>
-    <a class="btn sm" href="https://www.instagram.com/joedoescars" target="_blank" rel="noopener noreferrer">Work Instagram ↗</a>
-    <button class="btn sm" onclick="exportJSON()">Backup</button>
-    <button class="btn sm" onclick="document.getElementById('importFile').click()">Import</button>
-    <input id="importFile" type="file" accept=".json" hidden onchange="importData(event)">
-  </div>
-</header>
-
-<div class="wrap">
-  <div class="target">
-    <h2>£3,000 net / month</h2>
-    <div class="grid g4">
-      <div><div class="stat blue" id="grossNeeded">—</div><div class="small">Approx gross needed / month</div></div>
-      <div><div class="stat yellow" id="commNeeded">—</div><div class="small">Commission needed / month</div></div>
-      <div><div class="stat" id="netNow">—</div><div class="small">This month net run-rate</div></div>
-      <div><div class="stat red" id="commGap">—</div><div class="small">Commission gap this month</div></div>
-    </div>
-    <div class="progress"><div class="fill green" id="netProgress" style="width:0%"></div></div>
-  </div>
-
-  <div class="mobile-quick" id="mobileQuickActions">
-    <button class="btn primary" onclick="openDealModal()">+ Deal</button>
-    <button class="btn" onclick="openTaskModal()">+ Task</button>
-    <a class="btn" href="https://www.instagram.com/joedoescars" target="_blank" rel="noopener noreferrer">Instagram ↗</a>
-  </div>
-
-  <div class="tabs">
-    <button class="tab active" data-tab="dashboard">Dashboard</button>
-    <button class="tab" data-tab="work">Work</button>
-    <button class="tab" data-tab="deals">Deals</button>
-    <button class="tab" data-tab="commission">Commission</button>
-    <button class="tab" data-tab="performance">Performance</button>
-    <button class="tab" data-tab="playbook">Playbook</button>
-    <button class="tab" data-tab="settings">Settings</button>
-  </div>
-
-  <section class="section active" id="sec-dashboard">
-    <div class="grid g4">
-      <div class="card"><h2>Adjusted commission earned</h2><div class="stat green" id="dashEarned">—</div><div class="small" id="dashEarnedSub">Current month after recorded scheme adjustments</div><div class="progress"><div class="fill" id="dashCommProgress" style="width:0%"></div></div></div>
-      <div class="card"><h2>Expected next payslip</h2><div class="stat blue" id="dashExpected">—</div><div class="small" id="dashExpectedSub">—</div></div>
-      <div class="card"><h2>Actual paid this month</h2><div class="stat" id="dashPaid">£0</div><div class="small">Only payments you record</div></div>
-      <div class="card"><h2>Work due</h2><div class="stat red" id="dashWork">0</div><div class="small" id="dashWorkSub">Open tasks</div></div>
-    </div>
-    <div class="grid g2" style="margin-top:12px">
-      <div class="card"><h2>Deals needing attention</h2><div id="dashAttention"></div></div>
-      <div class="card"><h2>This month</h2><div id="dashBreakdown"></div></div>
-    </div>
-    <div class="card" style="margin-top:12px"><h2>Commission flow</h2><div id="dashFlow"></div></div>
-  </section>
-
-  <section class="section" id="sec-work">
-    <div class="topline"><div><div class="eyebrow">Customer work</div><h2>Work To Do</h2></div><button class="btn primary" onclick="openTaskModal()">+ Task</button></div>
-    <div class="grid g3">
-      <div class="card work-col"><h3>Overdue</h3><div id="workOverdue"></div></div>
-      <div class="card work-col"><h3>Today</h3><div id="workToday"></div></div>
-      <div class="card work-col"><h3>Upcoming</h3><div id="workUpcoming"></div></div>
-    </div>
-    <div class="card" style="margin-top:12px"><h2>All open work</h2><div id="workAll"></div></div>
-  </section>
-
-  <section class="section" id="sec-deals">
-    <div class="topline"><div><div class="eyebrow">Personal deal diary</div><h2>Deals</h2></div><button class="btn primary" onclick="openDealModal()">+ Deal</button></div>
-    <div class="card">
-      <div class="toolbar" style="margin-bottom:10px">
-        <input class="input" id="dealSearch" placeholder="Search customer / vehicle / stock" oninput="renderDeals()">
-        <select id="dealFilter" onchange="renderDeals()"><option value="all">All stages</option><option value="lead">Lead</option><option value="quoted">Quoted</option><option value="test-drive">Test drive</option><option value="ordered">Ordered</option><option value="awaiting-delivery">Awaiting delivery</option><option value="delivered">Delivered</option><option value="lost">Lost / cancelled</option></select>
-      </div>
-      <div class="tablewrap desktop-deals"><table class="table"><thead><tr><th>Customer</th><th>Vehicle</th><th>Stage</th><th>Order</th><th>Delivery</th><th>Next work</th><th>Earned</th><th>Pay</th><th></th></tr></thead><tbody id="dealsBody"></tbody></table></div>
-      <div class="deals-mobile" id="dealsMobile"></div>
-      <div id="noDeals" class="empty" style="display:none">No deals recorded.</div>
-    </div>
-  </section>
-
-  <section class="section" id="sec-commission">
-    <div class="topline"><div><div class="eyebrow">Money</div><h2>Commission</h2></div><div class="toolbar"><select id="commMonth" onchange="renderCommission()"></select></div></div>
-    <div class="grid g4">
-      <div class="card"><h2>Earned in selected month</h2><div class="stat green" id="commEarned">—</div></div>
-      <div class="card"><h2>Expected on selected payslip</h2><div class="stat blue" id="commExpected">—</div></div>
-      <div class="card"><h2>Actually paid</h2><div class="stat" id="commPaid">£0</div></div>
-      <div class="card"><h2>Outstanding</h2><div class="stat yellow" id="commOutstanding">£0</div></div>
-    </div>
-    <div class="card" style="margin-top:12px"><h2>Month-by-month</h2><div id="commissionMonths" class="month-grid"></div></div>
-    <div class="card" style="margin-top:12px"><h2>Commission events for selected month</h2><div id="commEvents"></div></div>
-    <div class="card" style="margin-top:12px"><h2>Scheme adjustments / risk</h2><div id="commAdjustments"></div></div>
-  </section>
-
-  <section class="section" id="sec-performance">
-    <div class="topline"><div><div class="eyebrow">Production</div><h2>Performance</h2></div></div>
-    <div class="grid g4">
-      <div class="card"><h2>Annual deliveries</h2><div class="stat blue" id="perfAnnualUnits">0 / 160</div><div class="progress"><div class="fill blue" id="perfAnnualBar" style="width:0%"></div></div></div>
-      <div class="card"><h2>Reference annual pace</h2><div class="stat" id="perfPace">—</div><div class="small">160-unit annual target ÷ 12. This is a reference pace, not a fixed monthly target.</div></div>
-      <div class="card"><h2>Potential annual bonus</h2><div class="stat yellow" id="perfBonus">£0</div></div>
-      <div class="card"><h2>Average commission / delivery</h2><div class="stat green" id="perfAvgComm">—</div><div class="small">Based on recorded eligible commission</div></div>
-    </div>
-    <div class="card" style="margin-top:12px"><h2>July → June</h2><div class="tablewrap"><table class="table"><thead><tr><th>Month</th><th>Unit target</th><th>Delivered</th><th>New</th><th>Used</th><th>Motab</th><th>Commission earned</th><th>Month status</th></tr></thead><tbody id="performanceBody"></tbody></table></div></div>
-    <div class="card" style="margin-top:12px"><h2>Quality / commission risk</h2><div id="perfRisk"></div></div>
-  </section>
-
-  <section class="section" id="sec-playbook">
-    <div class="card"><h2>60-second recall</h2><p class="body-sm" style="line-height:1.65;margin-bottom:9px"><em>"My job is to make it easy to buy. I will welcome well, discover properly, show value, keep the route clear and ask for the next step."</em></p><div class="checks"><span class="badge b-blue">Welcome</span><span class="badge b-blue">Rapport</span><span class="badge b-blue">Discovery</span><span class="badge b-green">Presentation</span><span class="badge b-green">Part Ex</span><span class="badge b-green">F&amp;I</span><span class="badge b-yellow">Test Drive</span><span class="badge b-yellow">Buy signals</span><span class="badge b-yellow">Invite</span><span class="badge b-gray">Next action</span></div></div>
-    <div class="card" style="margin-top:12px"><h2>Playbook</h2><div class="toolbar"><button class="btn" onclick="showPlay('route')">Full route</button><button class="btn" onclick="showPlay('discovery')">Discovery</button><button class="btn" onclick="showPlay('fi')">F&amp;I</button><button class="btn" onclick="showPlay('invite')">Close</button><button class="btn" onclick="showPlay('scripts')">Scripts</button></div></div>
-    <div class="card" style="margin-top:12px"><h2 id="playTitle">Full route</h2><div class="note" id="playBody"></div></div>
-  </section>
-
-  <section class="section" id="sec-settings">
-    <div class="grid g2">
-      <div class="card"><h2>Pay &amp; target</h2>
-        <div class="formgrid">
-          <div><label>Annual basic salary</label><input class="input" type="number" id="setBasic"></div>
-          <div><label>Monthly net target</label><input class="input" type="number" id="setNetTarget"></div>
-          <div><label>Pension %</label><input class="input" type="number" step="0.1" id="setPension"></div>
-          <div><label>Other monthly deductions</label><input class="input" type="number" id="setOtherDed"></div>
-        </div>
-        <button class="btn primary" style="margin-top:10px" onclick="saveSettings()">Save</button>
-      </div>
-      <div class="card"><h2>Targets &amp; scheme rules</h2>
-        <div class="formgrid">
-          <div><label>Month</label><input class="input" type="month" id="setTargetMonth"></div>
-          <div><label>Combined unit target</label><input class="input" type="number" min="1" id="setMonthTarget" placeholder="Only enter if known"></div>
-          <div><label>New-vehicle delivery target</label><input class="input" type="number" min="1" id="setNewVehicleTarget" placeholder="Only enter if known"></div>
-        </div>
-        <div class="toolbar" style="margin-top:10px"><button class="btn primary" onclick="saveMonthTarget()">Save targets</button><button class="btn" onclick="clearMonthTarget()">Clear targets</button></div>
-        <div class="commission-rates" style="margin-top:12px"><h3>Commission rates</h3><div class="tablewrap"><table class="table"><thead><tr><th>Type</th><th>Order / invoice</th><th>Delivery</th><th>F&amp;I</th></tr></thead><tbody><tr><td>New Retail</td><td>£40</td><td>£40</td><td>Finance £10 · Paint £35 · Refresh £35 · Warranty £35 · Motability Care Pack £25</td></tr><tr><td>New Motability</td><td>£30</td><td>£30</td><td>Finance £10 · Paint £35 · Refresh £35 · Warranty £35 · Motability Care Pack £25</td></tr><tr><td>Used</td><td>—</td><td>£60</td><td>Finance £60 · Paint £30 · Refresh £30 · Warranty £30 · Assurance £10</td></tr></tbody></table></div></div>
-      </div>
-    </div>
-    <div class="card" style="margin-top:12px"><h2>Data</h2><div class="toolbar"><button class="btn" onclick="exportJSON()">Export JSON</button><button class="btn" onclick="exportCSV()">Export CSV</button><button class="btn" onclick="document.getElementById('importFile').click()">Import JSON</button><button class="btn danger" onclick="if(confirm('Delete all local deals and tasks?')) clearAll()">Delete all</button></div></div>
-    <div class="card" style="margin-top:12px"><h2>Cloud sync</h2>
-      <div class="formgrid"><div><label>Supabase Project URL</label><input class="input" id="sbUrl" placeholder="https://xxxxx.supabase.co"></div><div><label>Supabase anon key</label><input class="input" id="sbKey" placeholder="eyJ..."></div></div>
-      <div class="toolbar" style="margin-top:10px"><button class="btn primary" onclick="connectSupabase()">Connect</button><button class="btn" id="btnPull" onclick="pullFromCloud()" disabled>Pull</button><button class="btn" id="btnPush" onclick="pushToCloud()" disabled>Push</button><button class="btn" onclick="disconnectSupabase()">Disconnect</button></div>
-      <div class="note" id="cloudMsg" style="margin-top:8px"></div>
-    </div>
-  </section>
-</div>
-
-<div class="modal" id="dealModal">
- <div class="modalbox">
-  <div class="modalhead"><div><div class="eyebrow">Deal record</div><h3 id="dealModalTitle">Add deal</h3></div><button class="close" onclick="closeDealModal()">×</button></div>
-  <div class="modalbody">
-   <form id="dealForm" onsubmit="saveDeal(event)">
-    <input type="hidden" id="editId">
-    <div class="formgrid three">
-      <div><label>Customer</label><input class="input" id="fCustomer" required></div>
-      <div><label>Phone</label><input class="input" id="fPhone"></div>
-      <div><label>Email</label><input class="input" id="fEmail"></div>
-      <div><label>Vehicle</label><input class="input" id="fVehicle" placeholder="Model / derivative"></div>
-      <div><label>Stock / reg</label><input class="input" id="fStock"></div>
-      <div><label>Sale type</label><select id="fType"><option value="new-retail">New Retail</option><option value="new-motab">New Motability</option><option value="used">Used</option></select></div>
-      <div><label>Stage</label><select id="fStage"><option value="lead">Lead</option><option value="quoted">Quoted</option><option value="test-drive">Test drive</option><option value="ordered">Ordered</option><option value="awaiting-delivery">Awaiting delivery</option><option value="delivered">Delivered</option><option value="lost">Lost / cancelled</option></select></div>
-      <div><label>Lead date</label><input class="input" type="date" id="fLeadDate"></div>
-      <div><label>Order / invoice date</label><input class="input" type="date" id="fOrderDate"></div>
-      <div><label>Expected delivery</label><input class="input" type="date" id="fExpectedDelivery"></div>
-      <div><label>Delivery date</label><input class="input" type="date" id="fDeliveryDate"></div>
-      <div><label>Finance payout confirmed</label><input class="input" type="date" id="fFinancePayout"></div>
-    </div>
-    <div class="divider"></div>
-    <div><label>F&amp;I commissionable products</label><div class="checks" id="fiChecks"></div></div>
-    <div class="formgrid three" style="margin-top:10px">
-      <div><label>CSI (optional)</label><input class="input" type="number" min="0" max="10" step="0.1" id="fCSI" placeholder="Leave blank until Pentagon provides it"></div>
-      <div><label>PX / trade-in</label><input class="input" id="fPx" placeholder="Optional"></div>
-      <div><label>Next action summary</label><input class="input" id="fNextAction" placeholder="Optional — tasks are better for due work"></div>
-    </div>
-    <div class="divider"></div>
-    <div class="grid g2">
-      <div><h2>Commission events</h2><div id="dealEvents"></div></div>
-      <div><h2>Diary</h2><div id="dealDiary" class="diary"></div><div style="margin-top:8px"><textarea id="fDiary" rows="3" placeholder="Add a dated note to your personal deal diary..."></textarea><button type="button" class="btn" style="margin-top:6px" onclick="addDiaryEntry()">Add diary note</button></div></div>
-    </div>
-    <div class="card" style="margin-top:12px;box-shadow:none;background:var(--card2)">
-      <h2>Manual commission adjustments</h2>
-      <div id="dealAdjustments"></div>
-      <div class="formgrid three" style="margin-top:8px">
-        <div><label>Adjustment amount</label><input class="input" type="number" step="0.01" id="adjAmount" placeholder="-60 or +60"></div>
-        <div><label>Date</label><input class="input" type="date" id="adjDate"></div>
-        <div><label>Reason</label><input class="input" id="adjReason" placeholder="e.g. CSI debit back"></div>
-      </div>
-      <button type="button" class="btn" style="margin-top:7px" onclick="addDealAdjustment()">Add adjustment</button>
-      
-    </div>
-    <div class="divider"></div>
-    <div class="card" style="box-shadow:none;background:var(--card2)"><h2>Work for this customer</h2><div id="dealTasks"></div><div class="formgrid three" style="margin-top:7px"><div><label>Task</label><input class="input" id="quickTaskTitle" placeholder="e.g. Call to confirm delivery"></div><div><label>Due</label><input class="input" type="date" id="quickTaskDue"></div><div><label>Type</label><select id="quickTaskType"><option>Call</option><option>SMS</option><option>Email</option><option>Appointment</option><option>Finance</option><option>Delivery</option><option>Admin</option><option>Other</option></select></div></div><button type="button" class="btn" style="margin-top:7px" onclick="addQuickTask()">Add task</button></div>
-    <div class="divider"></div>
-    <div class="toolbar" style="justify-content:flex-end"><button type="button" class="btn" onclick="closeDealModal()">Cancel</button><button type="submit" class="btn primary" id="dealSubmit">Save deal</button></div>
-   </form>
-  </div>
- </div>
-</div>
-
-<div class="modal" id="taskModal">
- <div class="modalbox" style="max-width:560px"><div class="modalhead"><h3>New work item</h3><button class="close" onclick="closeTaskModal()">×</button></div>
-  <div class="modalbody">
-   <form onsubmit="saveTask(event)">
-    <div><label>Deal</label><select id="tDeal"><option value="">No linked deal</option></select></div>
-    <div><label>Task</label><input class="input" id="tTitle" required placeholder="What do you need to do?"></div>
-    <div class="formgrid three"><div><label>Due</label><input class="input" type="date" id="tDue" required></div><div><label>Type</label><select id="tType"><option>Call</option><option>SMS</option><option>Email</option><option>Appointment</option><option>Finance</option><option>Delivery</option><option>Admin</option><option>Other</option></select></div><div><label>Priority</label><select id="tPriority"><option value="normal">Normal</option><option value="high">High</option></select></div></div>
-    <div><label>Notes</label><textarea id="tNotes" rows="3"></textarea></div>
-    <div class="toolbar" style="justify-content:flex-end;margin-top:8px"><button type="button" class="btn" onclick="closeTaskModal()">Cancel</button><button class="btn primary">Add task</button></div>
-   </form>
-  </div>
- </div>
-</div>
-
-<div class="modal" id="paymentModal">
- <div class="modalbox" style="max-width:520px"><div class="modalhead"><h3>Record commission payment</h3><button class="close" onclick="closePaymentModal()">×</button></div>
-  <div class="modalbody">
-   <div class="note" id="paymentContext" style="margin-bottom:10px"></div>
-   <div class="formgrid"><div><label>Paid amount</label><input class="input" type="number" step="0.01" id="payAmount"></div><div><label>Paid date</label><input class="input" type="date" id="payDate"></div></div>
-   <div style="margin-top:9px"><label>Note</label><textarea id="payNote" rows="2"></textarea></div>
-   <div class="toolbar" style="justify-content:flex-end;margin-top:10px"><button class="btn" onclick="closePaymentModal()">Cancel</button><button class="btn primary" onclick="savePayment()">Save payment</button></div>
-  </div>
- </div>
-</div>
-
-<script src="app.js?v=20261008-2"></script>
-<script src="playbook.js?v=20261008-2"></script>
-<script>
-if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
-}
-</script>
-</body>
-</html>

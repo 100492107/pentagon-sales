@@ -17,12 +17,12 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root,[data-theme="dark"]{
- --red:#C8102E;--bg:#090a0c;--card:#141619;--card2:#1b1e22;--border:#2a2f35;
+ --red:#1683FF;--bg:#090a0c;--card:#141619;--card2:#1b1e22;--border:#2a2f35;
  --text:#f4f6f8;--muted:#929aa4;--green:#22c55e;--yellow:#eab308;--blue:#60a5fa;
  --danger:#ef4444;--input:#0d0f11;--shadow:0 10px 35px rgba(0,0,0,.18)
 }
 [data-theme="light"]{
- --red:#C8102E;--bg:#f3f4f6;--card:#fff;--card2:#f0f1f3;--border:#e2e4e8;
+ --red:#1468D8;--bg:#f3f4f6;--card:#fff;--card2:#f0f1f3;--border:#e2e4e8;
  --text:#18191b;--muted:#6f767e;--green:#16a34a;--yellow:#ca8a04;--blue:#2563eb;
  --danger:#dc2626;--input:#fff;--shadow:0 10px 30px rgba(18,22,28,.08)
 }
@@ -31,7 +31,7 @@ body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;ba
 button,input,select,textarea{font:inherit}
 button{cursor:pointer}
 header{background:#111318;border-bottom:3px solid var(--red);padding:13px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:20}
-.brand{display:flex;align-items:center;gap:10px}.brandmark{width:40px;height:40px;background:var(--red);clip-path:polygon(50% 0%,100% 36%,84% 100%,16% 100%,0 36%);display:grid;place-items:center;font-weight:800;color:#fff}
+.brand{display:flex;align-items:center;gap:10px}.brandmark{width:44px;height:44px;flex:0 0 44px;border-radius:11px;object-fit:cover;display:block;box-shadow:0 0 0 1px rgba(255,255,255,.10),0 7px 20px rgba(22,131,255,.20);background:#05070b}
 .brand h1{font-size:16px;letter-spacing:-.02em;color:#fff}.brand p{font-size:10px;color:#9ea3aa;text-transform:uppercase;letter-spacing:.08em}
 .header-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.sync{font-size:10px;padding:5px 8px;border-radius:999px;background:#25292e;color:#aeb5bd}.sync.online{color:#8af0ae;background:rgba(34,197,94,.12)}.sync.error{color:#ff9ea9;background:rgba(200,16,46,.12)}
 .wrap{max-width:1220px;margin:0 auto;padding:18px}
@@ -54,7 +54,7 @@ label{font-size:10px;color:var(--muted);font-weight:700;display:block;margin-bot
 .formgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.formgrid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
 .checks{display:flex;flex-wrap:wrap;gap:7px}.check{display:flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--card2);padding:7px 8px;border-radius:7px;font-size:11px;color:var(--text)}.check input{width:auto}
 .toolbar{display:flex;align-items:center;gap:7px;flex-wrap:wrap}.toolbar .input{max-width:260px}
-.tablewrap{overflow:auto}.table{width:100%;border-collapse:collapse;font-size:11px;min-width:820px}.table th,.table td{padding:8px 7px;border-bottom:1px solid var(--border);text-align:left;vertical-align:middle}.table th{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--card2)}.table tr:hover{background:rgba(200,16,46,.035)}
+.tablewrap{overflow:auto}.table{width:100%;border-collapse:collapse;font-size:11px;min-width:820px}.table th,.table td{padding:8px 7px;border-bottom:1px solid var(--border);text-align:left;vertical-align:middle}.table th{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--card2)}.table tr:hover{background:rgba(22,131,255,.035)}
 .month-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.monthbox{border:1px solid var(--border);border-radius:8px;padding:10px;background:var(--card2)}.monthbox.na{border-color:#8b5cf6;background:rgba(139,92,246,.13)}.monthbox.na h3,.monthbox.na .n{color:#c4b5fd}.monthbox.na .l{color:#aaa0bf}.monthbox h3{font-size:11px;margin-bottom:7px}.monthbox .n{font-size:19px;font-weight:800}.monthbox .l{font-size:9px;color:var(--muted)}
 .work-col h3{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px}.task{display:flex;gap:9px;align-items:flex-start;padding:9px;border:1px solid var(--border);background:var(--card2);border-radius:8px;margin-bottom:7px}.task-main{flex:1}.task-title{font-size:12px;font-weight:800}.task-meta{font-size:10px;color:var(--muted);margin-top:2px}.task.done{opacity:.6}.task.done .task-title{text-decoration:line-through}
 .empty{padding:28px 14px;text-align:center;color:var(--muted);font-size:12px}.deal-card{display:none}.deals-mobile{display:none}.mobile-quick{display:none}.mobile-only{display:none}.deal-card-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.deal-card-name{font-size:14px;font-weight:800}.deal-card-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}.deal-card-grid>div{border:1px solid var(--border);background:var(--card);border-radius:7px;padding:8px}.deal-card-grid span{display:block;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}.deal-card-grid strong{display:block;font-size:12px;margin-top:2px}.deal-card-next{margin-top:10px;font-size:10px;color:var(--muted)}.deal-card-next span{font-weight:800;color:var(--text)}.deal-open{width:100%;margin-top:10px}.mobile-quick{gap:7px;margin:-2px 0 10px}.mobile-quick .btn{flex:1;display:flex;align-items:center;justify-content:center;min-height:44px}
@@ -147,7 +147,7 @@ label{font-size:10px;color:var(--muted);font-weight:700;display:block;margin-bot
 html{scroll-behavior:smooth}
 body{
   background:
-    radial-gradient(circle at 15% -5%,rgba(200,16,46,.09),transparent 28rem),
+    radial-gradient(circle at 15% -5%,rgba(22,131,255,.09),transparent 28rem),
     radial-gradient(circle at 100% 0%,rgba(96,165,250,.05),transparent 24rem),
     var(--bg);
 }
@@ -158,7 +158,7 @@ header{
   box-shadow:0 1px 0 rgba(255,255,255,.03),0 8px 28px rgba(0,0,0,.12);
 }
 .brand{gap:12px}
-.brandmark{box-shadow:0 0 0 1px rgba(255,255,255,.08),0 8px 20px rgba(200,16,46,.18)}
+.brandmark{box-shadow:0 0 0 1px rgba(255,255,255,.08),0 8px 20px rgba(22,131,255,.18)}
 .brand h1{font-size:17px}
 .brand p{letter-spacing:.11em}
 .wrap{max-width:1260px;padding:22px 20px 30px}
@@ -183,8 +183,8 @@ header{
   position:relative;
   overflow:hidden;
   padding:18px;
-  border:1px solid rgba(200,16,46,.45);
-  box-shadow:0 18px 45px rgba(200,16,46,.07),var(--shadow);
+  border:1px solid rgba(22,131,255,.45);
+  box-shadow:0 18px 45px rgba(22,131,255,.07),var(--shadow);
 }
 .target::after{
   content:"";
@@ -217,8 +217,8 @@ header{
   transition:transform .14s ease,filter .14s ease,background .14s ease,border-color .14s ease,box-shadow .14s ease;
 }
 .btn:hover{filter:brightness(1.04)}
-.btn.primary{box-shadow:0 6px 14px rgba(200,16,46,.16)}
-.btn.primary:hover{box-shadow:0 8px 18px rgba(200,16,46,.22);transform:translateY(-1px)}
+.btn.primary{box-shadow:0 6px 14px rgba(22,131,255,.16)}
+.btn.primary:hover{box-shadow:0 8px 18px rgba(22,131,255,.22);transform:translateY(-1px)}
 .input,select,textarea{
   border-radius:8px;
   min-height:38px;
@@ -226,7 +226,7 @@ header{
   transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;
 }
 .input:focus,select:focus,textarea:focus{
-  box-shadow:0 0 0 3px rgba(200,16,46,.10);
+  box-shadow:0 0 0 3px rgba(22,131,255,.10);
 }
 .tablewrap{border-radius:10px}
 .table{min-width:840px}
@@ -249,7 +249,7 @@ header{
   padding:10px;
   transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
 }
-.task:hover{transform:translateY(-1px);border-color:rgba(200,16,46,.26);box-shadow:0 8px 18px rgba(0,0,0,.08)}
+.task:hover{transform:translateY(-1px);border-color:rgba(22,131,255,.26);box-shadow:0 8px 18px rgba(0,0,0,.08)}
 .empty{padding:34px 14px}
 .topline{margin-bottom:12px}
 .topline h2{font-size:24px;font-weight:800}
@@ -288,7 +288,7 @@ header{
 </head>
 <body data-theme="dark">
 <header>
-  <div class="brand"><div class="brandmark">P</div><div><h1>My Sales HQ</h1><p>Personal sales diary · commission · performance</p></div></div>
+  <div class="brand"><img class="brandmark" src="/assets/joedoes-icon.jpg" alt="JoeDoesCars logo"><div><h1>My Sales HQ</h1><p>JOEDOESCARS · PERSONAL CAR SALES</p></div></div>
   <div class="header-actions">
     <span class="sync" id="syncStatus">Local only</span>
     <button class="btn sm" id="themeBtn" onclick="toggleTheme()">Light</button>
@@ -502,8 +502,8 @@ header{
  </div>
 </div>
 
-<script src="app.js?v=20261008-1"></script>
-<script src="playbook.js?v=20261008-1"></script>
+<script src="app.js?v=20261008-2"></script>
+<script src="playbook.js?v=20261008-2"></script>
 <script>
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));

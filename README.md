@@ -1,4 +1,4 @@
-# Pentagon Motor Group — Commission Tracker
+# My Sales HQ — Personal Car Sales Tracker
 
 Personal commission tracker for Pentagon Motor Group Sales Consultants (2026/27 scheme).
 
@@ -33,3 +33,10 @@ create policy "Allow all" on deals for all using (true) with check (true);
 
 F&I New: Finance £10 · Paint/Refresh/Warranty £35 · Care Pack £25  
 F&I Used: Finance £60 · Paint/Refresh/Warranty £30 · Assurance £10
+
+
+## Mobile / PWA
+- Mobile-native deal cards replace the wide deal table on small screens.
+- Quick actions for Deal, Task and Instagram are available on mobile.
+- Installable as a home-screen web app via the PWA manifest.
+- Service worker provides an offline app shell; live cloud sync still requires connectivity.

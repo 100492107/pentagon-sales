@@ -9,9 +9,9 @@
   "description":"Personal car sales deal, task, commission and performance tracker.",
   "icons":[
     {
-      "src":"/icon.svg",
-      "sizes":"any",
-      "type":"image/svg+xml",
+      "src":"/assets/joedoes-icon.jpg",
+      "sizes":"160x160",
+      "type":"image/jpeg",
       "purpose":"any maskable"
     }
   ]

@@ -135,6 +135,155 @@ label{font-size:10px;color:var(--muted);font-weight:700;display:block;margin-bot
   .statline{padding:9px 0;font-size:11px}
   .empty{padding:22px 10px}
 }
+/* UX refresh */
+:root,[data-theme="dark"]{
+  --bg:#08090b;--card:#121418;--card2:#181b20;--border:#292e36;
+  --text:#f7f8fa;--muted:#8f98a4;--shadow:0 14px 40px rgba(0,0,0,.22);
+}
+[data-theme="light"]{
+  --bg:#eef0f3;--card:#ffffff;--card2:#f5f6f8;--border:#dfe3e8;
+  --text:#17191d;--muted:#707883;--shadow:0 14px 35px rgba(19,25,31,.08);
+}
+html{scroll-behavior:smooth}
+body{
+  background:
+    radial-gradient(circle at 15% -5%,rgba(200,16,46,.09),transparent 28rem),
+    radial-gradient(circle at 100% 0%,rgba(96,165,250,.05),transparent 24rem),
+    var(--bg);
+}
+header{
+  padding:12px 20px;
+  background:rgba(15,17,21,.92);
+  backdrop-filter:blur(14px);
+  box-shadow:0 1px 0 rgba(255,255,255,.03),0 8px 28px rgba(0,0,0,.12);
+}
+.brand{gap:12px}
+.brandmark{box-shadow:0 0 0 1px rgba(255,255,255,.08),0 8px 20px rgba(200,16,46,.18)}
+.brand h1{font-size:17px}
+.brand p{letter-spacing:.11em}
+.wrap{max-width:1260px;padding:22px 20px 30px}
+.tabs{
+  padding:4px;
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:12px;
+  box-shadow:var(--shadow);
+  gap:4px;
+}
+.tab{
+  border:0;
+  border-radius:8px;
+  padding:9px 13px;
+  transition:background .16s ease,color .16s ease,transform .16s ease;
+}
+.tab:not(.active):hover{background:var(--card2);color:var(--text);transform:translateY(-1px)}
+.tab.active{box-shadow:0 5px 14px rgba(200,16,46,.18)}
+.section.active{animation:sectionIn .24s ease both}
+.target{
+  position:relative;
+  overflow:hidden;
+  padding:18px;
+  border:1px solid rgba(200,16,46,.45);
+  box-shadow:0 18px 45px rgba(200,16,46,.07),var(--shadow);
+}
+.target::after{
+  content:"";
+  position:absolute;
+  width:220px;height:220px;
+  right:-100px;top:-110px;
+  border-radius:50%;
+  background:rgba(200,16,46,.07);
+  pointer-events:none;
+}
+.target h2{font-size:13px;letter-spacing:.1em}
+.target .grid{position:relative;z-index:1}
+.target .stat{font-size:27px}
+.target .small{margin-top:3px}
+.progress{height:7px;margin-top:11px}
+.fill{transition:width .45s cubic-bezier(.22,1,.36,1)}
+.card{
+  border-radius:13px;
+  padding:17px;
+  box-shadow:var(--shadow);
+}
+.card h2{font-size:10px;letter-spacing:.1em}
+.card h3{letter-spacing:.01em}
+.stat{font-variant-numeric:tabular-nums}
+.statline{padding:8px 0}
+.badge{padding:5px 8px;letter-spacing:.01em}
+.btn{
+  border-radius:8px;
+  min-height:34px;
+  transition:transform .14s ease,filter .14s ease,background .14s ease,border-color .14s ease,box-shadow .14s ease;
+}
+.btn:hover{filter:brightness(1.04)}
+.btn.primary{box-shadow:0 6px 14px rgba(200,16,46,.16)}
+.btn.primary:hover{box-shadow:0 8px 18px rgba(200,16,46,.22);transform:translateY(-1px)}
+.input,select,textarea{
+  border-radius:8px;
+  min-height:38px;
+  box-shadow:inset 0 1px 1px rgba(0,0,0,.04);
+  transition:border-color .16s ease,box-shadow .16s ease,background .16s ease;
+}
+.input:focus,select:focus,textarea:focus{
+  box-shadow:0 0 0 3px rgba(200,16,46,.10);
+}
+.tablewrap{border-radius:10px}
+.table{min-width:840px}
+.table th{
+  padding-top:10px;padding-bottom:10px;
+  letter-spacing:.08em;
+}
+.table td{padding-top:10px;padding-bottom:10px}
+.table tbody tr{transition:background .14s ease}
+.month-grid{gap:9px}
+.monthbox{
+  border-radius:10px;
+  padding:11px;
+  transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease;
+}
+.monthbox:hover{transform:translateY(-2px);box-shadow:0 10px 22px rgba(0,0,0,.10)}
+.monthbox.na{box-shadow:inset 0 0 0 1px rgba(139,92,246,.08)}
+.task{
+  border-radius:10px;
+  padding:10px;
+  transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease;
+}
+.task:hover{transform:translateY(-1px);border-color:rgba(200,16,46,.26);box-shadow:0 8px 18px rgba(0,0,0,.08)}
+.empty{padding:34px 14px}
+.topline{margin-bottom:12px}
+.topline h2{font-size:24px;font-weight:800}
+.eyebrow{letter-spacing:.13em}
+.modal{backdrop-filter:blur(5px)}
+.modalbox{
+  border-radius:15px;
+  box-shadow:0 28px 90px rgba(0,0,0,.40);
+  animation:modalIn .2s ease both;
+}
+@keyframes modalIn{from{opacity:0;transform:translateY(8px) scale(.985)}to{opacity:1;transform:none}}
+.modalhead{padding:15px 18px}
+.modalbody{padding:18px}
+.event{border-radius:10px;padding:10px}
+.entry{padding:9px 11px}
+.commission-rates{overflow:hidden}
+.mobile-quick .btn{box-shadow:0 6px 18px rgba(0,0,0,.08)}
+@media(max-width:650px){
+  header{padding:9px 10px}
+  .wrap{padding:10px 10px 24px}
+  .tabs{
+    box-shadow:none;
+    border-radius:10px;
+  }
+  .target{padding:13px}
+  .target .stat{font-size:21px}
+  .topline h2{font-size:20px}
+  .card{padding:13px}
+  .monthbox:hover,.task:hover{transform:none;box-shadow:none}
+  .modalbox{border-radius:12px}
+}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+}
 </style>
 </head>
 <body data-theme="dark">

@@ -1,0 +1,18 @@
+{
+  "name":"My Sales HQ",
+  "short_name":"Sales HQ",
+  "start_url":"/",
+  "scope":"/",
+  "display":"standalone",
+  "background_color":"#090a0c",
+  "theme_color":"#C8102E",
+  "description":"Personal car sales deal, task, commission and performance tracker.",
+  "icons":[
+    {
+      "src":"/icon.svg",
+      "sizes":"any",
+      "type":"image/svg+xml",
+      "purpose":"any maskable"
+    }
+  ]
+}

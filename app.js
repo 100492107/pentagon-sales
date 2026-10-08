@@ -367,9 +367,9 @@ function saveTask(e){
   const existing=tasks.find(x=>x.id===id);
   const obj={id:id||uid('task'),dealId:document.getElementById('tDeal').value,title:document.getElementById('tTitle').value.trim(),due:document.getElementById('tDue').value,type:document.getElementById('tType').value,priority:document.getElementById('tPriority').value,notes:document.getElementById('tNotes').value.trim(),done:existing?!!existing.done:false,completedDate:existing?.completedDate||''};
   const i=tasks.findIndex(x=>x.id===id); if(i>=0)tasks[i]={...tasks[i],...obj};else tasks.push(obj);
-  persist();closeTaskModal();refreshAll();
+  persist();closeTaskModal();refreshAll();cloudSave();
 }
-function toggleTask(id){const t=tasks.find(x=>x.id===id);if(!t)return;t.done=!t.done;t.completedDate=t.done?todayKey():'';persist();refreshAll()}
+function toggleTask(id){const t=tasks.find(x=>x.id===id);if(!t)return;t.done=!t.done;t.completedDate=t.done?todayKey():'';persist();refreshAll();cloudSave()}
 
 function renderDeals(){
   const q=(document.getElementById('dealSearch').value||'').toLowerCase(),f=document.getElementById('dealFilter').value;

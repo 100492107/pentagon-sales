@@ -3,6 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#C8102E">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="My Sales HQ">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon.svg">
 <title>My Sales HQ</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -47,7 +55,7 @@ label{font-size:10px;color:var(--muted);font-weight:700;display:block;margin-bot
 .tablewrap{overflow:auto}.table{width:100%;border-collapse:collapse;font-size:11px;min-width:820px}.table th,.table td{padding:8px 7px;border-bottom:1px solid var(--border);text-align:left;vertical-align:middle}.table th{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--card2)}.table tr:hover{background:rgba(200,16,46,.035)}
 .month-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.monthbox{border:1px solid var(--border);border-radius:8px;padding:10px;background:var(--card2)}.monthbox.na{border-color:#8b5cf6;background:rgba(139,92,246,.13)}.monthbox.na h3,.monthbox.na .n{color:#c4b5fd}.monthbox.na .l{color:#aaa0bf}.monthbox h3{font-size:11px;margin-bottom:7px}.monthbox .n{font-size:19px;font-weight:800}.monthbox .l{font-size:9px;color:var(--muted)}
 .work-col h3{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:8px}.task{display:flex;gap:9px;align-items:flex-start;padding:9px;border:1px solid var(--border);background:var(--card2);border-radius:8px;margin-bottom:7px}.task-main{flex:1}.task-title{font-size:12px;font-weight:800}.task-meta{font-size:10px;color:var(--muted);margin-top:2px}.task.done{opacity:.6}.task.done .task-title{text-decoration:line-through}
-.empty{padding:28px 14px;text-align:center;color:var(--muted);font-size:12px}
+.empty{padding:28px 14px;text-align:center;color:var(--muted);font-size:12px}.deal-card{display:none}.mobile-quick{display:none}.mobile-only{display:none}.deal-card-head{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}.deal-card-name{font-size:14px;font-weight:800}.deal-card-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:12px}.deal-card-grid>div{border:1px solid var(--border);background:var(--card);border-radius:7px;padding:8px}.deal-card-grid span{display:block;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}.deal-card-grid strong{display:block;font-size:12px;margin-top:2px}.deal-card-next{margin-top:10px;font-size:10px;color:var(--muted)}.deal-card-next span{font-weight:800;color:var(--text)}.deal-open{width:100%;margin-top:10px}.mobile-quick{gap:7px;margin:-2px 0 10px}.mobile-quick .btn{flex:1;display:flex;align-items:center;justify-content:center;min-height:44px}
 .note{font-size:11px;line-height:1.65;color:var(--muted)}.danger-text{color:#ff8594}.good-text{color:#73e69b}.warn-text{color:#f6d86c}
 .topline{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px}.topline h2{font-size:22px;letter-spacing:-.03em}.eyebrow{font-size:9px;color:var(--red);text-transform:uppercase;font-weight:800;letter-spacing:.1em}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;padding:14px;z-index:50}.modal.show{display:flex}.modalbox{width:min(940px,100%);max-height:92vh;overflow:auto;background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:0 30px 90px rgba(0,0,0,.4)}.modalhead{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--card);z-index:2}.modalhead h3{font-size:16px}.close{border:0;background:transparent;color:var(--muted);font-size:25px}.modalbody{padding:16px}.divider{height:1px;background:var(--border);margin:13px 0}.event{border:1px solid var(--border);border-radius:8px;padding:9px;background:var(--card2);margin-bottom:7px}.eventline{display:flex;justify-content:space-between;gap:10px;align-items:center}.eventtitle{font-size:11px;font-weight:800}.eventmeta{font-size:10px;color:var(--muted);margin-top:3px}
@@ -59,6 +67,10 @@ label{font-size:10px;color:var(--muted);font-weight:700;display:block;margin-bot
   .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
 }
 @media(max-width:650px){
+  .mobile-quick{display:flex}
+  .desktop-deals{display:none}
+  .deals-mobile{display:grid;gap:8px}
+  .deal-card{display:block;border:1px solid var(--border);background:var(--card2);border-radius:10px;padding:11px}
   body{overflow-x:hidden;-webkit-text-size-adjust:100%}
   header{padding:10px 12px;gap:9px;position:sticky;top:0}
   .brand{min-width:0;flex:1}
@@ -148,6 +160,12 @@ label{font-size:10px;color:var(--muted);font-weight:700;display:block;margin-bot
     <div class="progress"><div class="fill green" id="netProgress" style="width:0%"></div></div>
   </div>
 
+  <div class="mobile-quick" id="mobileQuickActions">
+    <button class="btn primary" onclick="openDealModal()">+ Deal</button>
+    <button class="btn" onclick="openTaskModal()">+ Task</button>
+    <a class="btn" href="https://www.instagram.com/joedoescars" target="_blank" rel="noopener noreferrer">Instagram ↗</a>
+  </div>
+
   <div class="tabs">
     <button class="tab active" data-tab="dashboard">Dashboard</button>
     <button class="tab" data-tab="work">Work</button>
@@ -189,7 +207,8 @@ label{font-size:10px;color:var(--muted);font-weight:700;display:block;margin-bot
         <input class="input" id="dealSearch" placeholder="Search customer / vehicle / stock" oninput="renderDeals()">
         <select id="dealFilter" onchange="renderDeals()"><option value="all">All stages</option><option value="lead">Lead</option><option value="quoted">Quoted</option><option value="test-drive">Test drive</option><option value="ordered">Ordered</option><option value="awaiting-delivery">Awaiting delivery</option><option value="delivered">Delivered</option><option value="lost">Lost / cancelled</option></select>
       </div>
-      <div class="tablewrap"><table class="table"><thead><tr><th>Customer</th><th>Vehicle</th><th>Stage</th><th>Order</th><th>Delivery</th><th>Next work</th><th>Earned</th><th>Pay</th><th></th></tr></thead><tbody id="dealsBody"></tbody></table></div>
+      <div class="tablewrap desktop-deals"><table class="table"><thead><tr><th>Customer</th><th>Vehicle</th><th>Stage</th><th>Order</th><th>Delivery</th><th>Next work</th><th>Earned</th><th>Pay</th><th></th></tr></thead><tbody id="dealsBody"></tbody></table></div>
+      <div class="deals-mobile" id="dealsMobile"></div>
       <div id="noDeals" class="empty" style="display:none">No deals recorded.</div>
     </div>
   </section>
@@ -334,5 +353,10 @@ label{font-size:10px;color:var(--muted);font-weight:700;display:block;margin-bot
 
 <script src="app.js?v=20261007-3"></script>
 <script src="playbook.js?v=20261007-3"></script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(()=>{}));
+}
+</script>
 </body>
 </html>

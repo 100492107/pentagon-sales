@@ -52,8 +52,75 @@ label{font-size:10px;color:var(--muted);font-weight:700;display:block;margin-bot
 .topline{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:14px}.topline h2{font-size:22px;letter-spacing:-.03em}.eyebrow{font-size:9px;color:var(--red);text-transform:uppercase;font-weight:800;letter-spacing:.1em}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:none;align-items:center;justify-content:center;padding:14px;z-index:50}.modal.show{display:flex}.modalbox{width:min(940px,100%);max-height:92vh;overflow:auto;background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:0 30px 90px rgba(0,0,0,.4)}.modalhead{display:flex;justify-content:space-between;gap:12px;align-items:center;padding:14px 16px;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--card);z-index:2}.modalhead h3{font-size:16px}.close{border:0;background:transparent;color:var(--muted);font-size:25px}.modalbody{padding:16px}.divider{height:1px;background:var(--border);margin:13px 0}.event{border:1px solid var(--border);border-radius:8px;padding:9px;background:var(--card2);margin-bottom:7px}.eventline{display:flex;justify-content:space-between;gap:10px;align-items:center}.eventtitle{font-size:11px;font-weight:800}.eventmeta{font-size:10px;color:var(--muted);margin-top:3px}
 .diary{display:grid;gap:7px}.entry{border-left:2px solid var(--red);padding:7px 9px;background:var(--card2);border-radius:0 7px 7px 0}.entry .d{font-size:9px;color:var(--muted);text-transform:uppercase}.entry .t{font-size:11px;margin-top:2px;white-space:pre-wrap}
-@media(max-width:950px){.g4{grid-template-columns:repeat(2,minmax(0,1fr))}.g3{grid-template-columns:repeat(2,minmax(0,1fr))}.month-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:650px){.wrap{padding:12px}.g2,.g3,.g4,.formgrid,.formgrid.three{grid-template-columns:1fr}.month-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.topline{flex-direction:column}.stat{font-size:22px}.header-actions{width:100%}.toolbar .input{max-width:none}}
+@media(max-width:950px){
+  .g4{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .g3{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .month-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .tablewrap{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+}
+@media(max-width:650px){
+  body{overflow-x:hidden;-webkit-text-size-adjust:100%}
+  header{padding:10px 12px;gap:9px;position:sticky;top:0}
+  .brand{min-width:0;flex:1}
+  .brandmark{width:36px;height:36px;flex:0 0 36px}
+  .brand h1{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .brand p{font-size:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .header-actions{width:auto;flex:0 0 auto;gap:5px;justify-content:flex-end}
+  .header-actions .sync{display:none}
+  .header-actions .btn,.header-actions .btn.sm{min-height:40px;padding:7px 9px;font-size:10px}
+  .header-actions .btn:nth-last-child(-n+2){display:none}
+  .wrap{padding:10px}
+  .target{padding:12px;margin-bottom:10px}
+  .target h2{font-size:11px;margin-bottom:9px}
+  .g2,.g3,.formgrid,.formgrid.three{grid-template-columns:1fr}
+  .g4{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .card{padding:12px;border-radius:10px}
+  .stat{font-size:20px}
+  .small{font-size:10px}
+  .tabs{
+    flex-wrap:nowrap;
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+    margin:0 -10px 12px;
+    padding:0 10px 3px;
+  }
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{flex:0 0 auto;min-height:42px;padding:9px 12px;font-size:11px}
+  .topline{flex-direction:row;align-items:center;margin-bottom:10px}
+  .topline h2{font-size:19px}
+  .toolbar{gap:6px}
+  .toolbar .input{max-width:none;flex:1 1 100%}
+  .btn,.btn.sm{min-height:40px}
+  .input,select,textarea{font-size:16px;padding:10px}
+  label{font-size:9px}
+  .check{min-height:42px;padding:9px}
+  .month-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .monthbox{padding:9px;min-height:112px}
+  .monthbox .n{font-size:17px}
+  .monthbox .l{font-size:9px;line-height:1.35}
+  .monthbox .btn{width:100%;margin-left:0!important;margin-top:7px!important}
+  .tablewrap{
+    margin:0 -4px;
+    padding:0 4px 4px;
+    border-radius:8px;
+  }
+  .table{font-size:10px;min-width:700px}
+  .table th,.table td{padding:9px 7px}
+  .task{gap:8px;padding:10px}
+  .task-title{font-size:11px}
+  .task-meta{font-size:9px;line-height:1.4}
+  .task .btn{flex:0 0 auto}
+  .modal{padding:6px}
+  .modalbox{width:100%;max-height:96vh;border-radius:10px}
+  .modalhead{padding:11px 12px}
+  .modalbody{padding:12px}
+  .close{width:42px;height:42px;font-size:26px}
+  .eventline{align-items:flex-start;flex-wrap:wrap}
+  .eventline .btn{width:100%}
+  .statline{padding:9px 0;font-size:11px}
+  .empty{padding:22px 10px}
+}
 </style>
 </head>
 <body data-theme="dark">

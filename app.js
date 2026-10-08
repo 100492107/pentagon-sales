@@ -375,7 +375,9 @@ function renderDeals(){
   const q=(document.getElementById('dealSearch').value||'').toLowerCase(),f=document.getElementById('dealFilter').value;
   const rows=deals.filter(d=>(f==='all'||d.stage===f)&&((d.customer+' '+d.vehicle+' '+d.stock).toLowerCase().includes(q))).sort((a,b)=>(b.orderDate||b.leadDate||'').localeCompare(a.orderDate||a.leadDate||''));
   const body=document.getElementById('dealsBody');
+  const mobile=document.getElementById('dealsMobile');
   document.getElementById('noDeals').style.display=rows.length?'none':'block';
+
   body.innerHTML=rows.map(d=>{
     const ev=eventDefs(d),earned=ev.reduce((s,e)=>s+eligibleEvent(d,e),0),expected=ev.reduce((s,e)=>s+(e.payMonth===payMonthForCurrent()?Math.max(0,eligibleEvent(d,e)-eventPaid(d,e)):0),0);
     const next=tasks.filter(t=>t.dealId===d.id&&!t.done).sort((a,b)=>(a.due||'9999').localeCompare(b.due||'9999'))[0];
@@ -390,8 +392,29 @@ function renderDeals(){
       <td><button class="btn sm" onclick="openDealModal('${d.id}')">Open</button></td>
     </tr>`;
   }).join('');
-}
 
+  mobile.innerHTML=rows.map(d=>{
+    const ev=eventDefs(d);
+    const earned=ev.reduce((s,e)=>s+eligibleEvent(d,e),0);
+    const expected=ev.reduce((s,e)=>s+(e.payMonth===payMonthForCurrent()?Math.max(0,eligibleEvent(d,e)-eventPaid(d,e)):0),0);
+    const next=tasks.filter(t=>t.dealId===d.id&&!t.done).sort((a,b)=>(a.due||'9999').localeCompare(b.due||'9999'))[0];
+    const cls=d.stage==='delivered'?'b-green':d.stage==='lost'?'b-red':d.stage==='awaiting-delivery'?'b-yellow':'b-blue';
+    return `<article class="deal-card">
+      <div class="deal-card-head">
+        <div><div class="deal-card-name">${esc(d.customer||'Unnamed')}</div><div class="small">${esc(d.vehicle||'Vehicle')}${d.stock?' · '+esc(d.stock):''}</div></div>
+        <span class="badge ${cls}">${esc(STAGE_LABELS[d.stage]||d.stage)}</span>
+      </div>
+      <div class="deal-card-grid">
+        <div><span>Order</span><strong>${dateLabel(d.orderDate)}</strong></div>
+        <div><span>Delivery</span><strong>${dateLabel(d.deliveryDate)}</strong></div>
+        <div><span>Earned</span><strong>${money(earned)}</strong></div>
+        <div><span>Expected pay</span><strong>${money(expected)}</strong></div>
+      </div>
+      <div class="deal-card-next">${next?'<span>Next:</span> '+esc(next.title)+' · '+dateLabel(next.due):'<span>No open customer task</span>'}</div>
+      <button class="btn primary deal-open" onclick="openDealModal('${d.id}')">Open deal</button>
+    </article>`;
+  }).join('');
+}
 function buildFiChecks(selected=[]){
   const type=document.getElementById('fType').value,products=SCHEME.fi[type]||{};
   document.getElementById('fiChecks').innerHTML=Object.keys(products).map(k=>`<label class="check"><input type="checkbox" name="fi" value="${esc(k)}" ${selected.includes(k)?'checked':''}> ${esc(FI_LABELS[k])} +${money(products[k])}</label>`).join('');

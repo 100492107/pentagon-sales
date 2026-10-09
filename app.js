@@ -319,14 +319,6 @@ function renderSummary(){
   document.getElementById('netNow').textContent=money(net);
   document.getElementById('commGap').textContent=money(Math.max(0,target-s.earned));
   document.getElementById('netProgress').style.width=Math.min(100,s.earned/(target||1)*100)+'%';
-  document.getElementById('dashEarned').textContent=money(s.earned);
-  document.getElementById('dashEarnedSub').textContent=monthLabel(key);
-  document.getElementById('dashCommProgress').style.width=Math.min(100,s.earned/(target||1)*100)+'%';
-  const next=monthStats(payMonthForCurrent());
-  document.getElementById('dashExpected').textContent=money(next.expected);
-  document.getElementById('dashExpectedSub').textContent=monthLabel(next.key)+' payslip view';
-  document.getElementById('dashPaid').textContent=money(s.paid);
-  const dashGap=document.getElementById('dashCommGap');if(dashGap)dashGap.textContent=money(Math.max(0,target-s.earned));
 }
 const HANDOVER_STEPS=[
   ['prep','Prep'],['service','Service'],['mot','MOT'],['cosmetic','Cosmetic'],['valet','Valet'],['documents','Docs / keys']
@@ -373,12 +365,13 @@ function renderHubHandover(d){
 }
 function renderDashboard(){
   const key=currentMonthKey(),s=monthStats(key);
-  const attention=deals.filter(d=>dealRisk(d).length).sort((a,b)=>(a.deliveryDate||'').localeCompare(b.deliveryDate||'')).slice(0,8);
   const todayHandovers=handoverItemsForDate(todayKey());
   const upcoming=deals.filter(d=>d.stage!=='lost'&&getHandoverDate(d)&&getHandoverDate(d)>=todayKey()&&getHandoverDate(d)<=addDaysKey(todayKey(),7)).sort((a,b)=>(getHandoverDate(a)+a.handoverTime).localeCompare(getHandoverDate(b)+b.handoverTime));
   const todayWork=workInfoForDate(todayKey());
+  document.getElementById('dashTodayStatus').textContent=todayWork.off?'OFF':'WORKING';
+  document.getElementById('dashTodaySub').textContent=todayWork.off?'Day off · Week '+todayWork.type:'Week '+todayWork.type+' · '+todayWork.hours;
   document.getElementById('dashHandoversToday').textContent=todayHandovers.length;
-  document.getElementById('dashHandoversSub').textContent=todayWork.off?'OFF today':('Working '+todayWork.hours);
+  document.getElementById('dashHandoversSub').textContent=todayHandovers.length?todayHandovers.filter(h=>handoverReady(h)).length+' ready · '+todayHandovers.filter(h=>!handoverReady(h)).length+' in progress':'No handovers today';
   document.getElementById('dashNextHandovers').textContent=String(upcoming.length);
   document.getElementById('dashNextHandoversSub').textContent=upcoming.length?'Next 7 days':'Nothing scheduled';
   document.getElementById('dashTodayHandovers').innerHTML=todayHandovers.length?todayHandovers.map(renderHubHandover).join(''):'<div class="empty">No handovers scheduled today.</div>';
@@ -424,19 +417,19 @@ function renderCalendar(){
     const dateKey=calendarCursor.getFullYear()+'-'+String(calendarCursor.getMonth()+1).padStart(2,'0')+'-'+String(calendarCursor.getDate()).padStart(2,'0');
     document.getElementById('calendarRangeLabel').textContent=dateLabel(dateKey);
     const items=calendarItemsForDate(dateKey);
-    wrap.innerHTML='<div class="calendar-day">'+(items.length?items.map(calendarItemHtml).join(''):'<div class="empty">Nothing scheduled.</div>')+'</div>';
+    const info=workInfoForDate(dateKey);wrap.innerHTML='<div class="calendar-day"><div class="calendar-day-status '+(info.off?'off':'work')+'"><strong>'+esc(info.off?'OFF':'WORKING')+'</strong><span>'+esc(info.off?'Day off · Week '+info.type:'Week '+info.type+' · '+info.hours)+'</span></div>'+(items.length?items.map(calendarItemHtml).join(''):'<div class="empty">'+(info.off?'Day off — nothing scheduled.':'Nothing scheduled.')+'</div>')+'</div>';
     return;
   }
   if(calendarView==='week'){
     const start=startOfWeekKey(calendarCursor.getFullYear()+'-'+String(calendarCursor.getMonth()+1).padStart(2,'0')+'-'+String(calendarCursor.getDate()).padStart(2,'0'));
     const end=addDaysKey(start,6);
     document.getElementById('calendarRangeLabel').textContent=dateLabel(start)+' → '+dateLabel(end);
-    wrap.innerHTML='<div class="calendar-week">'+Array.from({length:7},(_,i)=>{const k=addDaysKey(start,i),items=calendarItemsForDate(k);return '<div class="calendar-col '+(k===todayKey()?'today-col':'')+'"><div class="calendar-col-head"><strong>'+parseDate(k).toLocaleDateString('en-GB',{weekday:'short'})+'</strong><span>'+parseDate(k).getDate()+'</span></div><div class="calendar-items">'+(items.length?items.map(calendarItemHtml).join(''):'<div class="calendar-none">—</div>')+'</div></div>';}).join('')+'</div>';
+    wrap.innerHTML='<div class="calendar-week">'+Array.from({length:7},(_,i)=>{const k=addDaysKey(start,i),items=calendarItemsForDate(k),info=workInfoForDate(k);return '<div class="calendar-col '+(k===todayKey()?'today-col ':'')+(info.off?'off-col':'')+'"><div class="calendar-col-head"><div><strong>'+parseDate(k).toLocaleDateString('en-GB',{weekday:'short'})+'</strong><span>'+parseDate(k).getDate()+'</span></div><em>'+esc(info.off?'OFF':info.hours)+'</em></div><div class="calendar-items">'+(items.length?items.map(calendarItemHtml).join(''):'<div class="calendar-none">'+(info.off?'Day off':'—')+'</div>')+'</div></div>';}).join('')+'</div>';
     return;
   }
   const y=calendarCursor.getFullYear(),m=calendarCursor.getMonth(),first=new Date(y,m,1,12),firstKey=y+'-'+String(m+1).padStart(2,'0')+'-01',start=startOfWeekKey(firstKey),total=Math.ceil((first.getDay()===0?6:first.getDay()-1+daysInMonth(y,m))/7)*7;
   document.getElementById('calendarRangeLabel').textContent=new Date(y,m,1).toLocaleString('en-GB',{month:'long',year:'numeric'});
-  wrap.innerHTML='<div class="calendar-month"><div class="calendar-month-head">'+['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(x=>'<div>'+x+'</div>').join('')+'</div><div class="calendar-month-grid">'+Array.from({length:total},(_,i)=>{const k=addDaysKey(start,i),d=parseDate(k),inMonth=d.getMonth()===m,items=calendarItemsForDate(k);return '<div class="calendar-cell '+(inMonth?'':'outside')+' '+(k===todayKey()?'today-cell':'')+'"><div class="calendar-cell-date">'+d.getDate()+'</div><div>'+(items.slice(0,4).map(calendarItemHtml).join('')||'')+'</div></div>';}).join('')+'</div></div>';
+  wrap.innerHTML='<div class="calendar-month"><div class="calendar-month-head">'+['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(x=>'<div>'+x+'</div>').join('')+'</div><div class="calendar-month-grid">'+Array.from({length:total},(_,i)=>{const k=addDaysKey(start,i),d=parseDate(k),inMonth=d.getMonth()===m,items=calendarItemsForDate(k);const info=workInfoForDate(k);return '<div class="calendar-cell '+(inMonth?'':'outside')+' '+(k===todayKey()?'today-cell':'')+' '+(info.off?'off-cell':'')+'"><div class="calendar-cell-date"><span>'+d.getDate()+'</span><em>'+esc(info.off?'OFF':info.hours)+'</em></div><div>'+(items.slice(0,4).map(calendarItemHtml).join('')||'')+'</div></div>';}).join('')+'</div></div>';
 }
 function calendarItemHtml(item){
   const cls=item.kind==='handover'?'handover-item':'calendar-item';

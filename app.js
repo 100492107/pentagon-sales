@@ -376,17 +376,9 @@ function renderDashboard(){
   document.getElementById('dashNextHandoversSub').textContent=upcoming.length?'Next 7 days':'Nothing scheduled';
   document.getElementById('dashTodayHandovers').innerHTML=todayHandovers.length?todayHandovers.map(renderHubHandover).join(''):'<div class="empty">No handovers scheduled today.</div>';
   document.getElementById('dashUpcomingHandovers').innerHTML=upcoming.length?upcoming.slice(0,8).map(renderHubHandover).join(''):'<div class="empty">No upcoming handovers in the next 7 days.</div>';
-  const target=monthTarget(key);
-  document.getElementById('dashBreakdown').innerHTML=[
-    ['Orders logged',deals.filter(d=>monthKey(d.orderDate)===key).length],
-    ['Delivered',s.units],['New Retail',s.newUnits],['Motability',s.motab],['Used',s.used],['Commission adjustments',money(s.adjustments)]
-  ].map(x=>`<div class="statline"><span>${esc(x[0])}</span><strong>${esc(x[1])}</strong></div>`).join('')+(target===null?'':`<div class="statline"><span>Monthly unit target</span><strong>${target}</strong></div>`);
-  const nextKey=payMonthForCurrent(), prev=monthStats(currentMonthKey());
-  document.getElementById('dashFlow').innerHTML=[
-    `<div class="statline"><span>${monthLabel(key)} earned</span><strong>${money(prev.earned)}</strong></div>`,
-    `<div class="statline"><span>${monthLabel(nextKey)} expected from this month's earned commission</span><strong>${money(monthStats(nextKey).expected)}</strong></div>`,
-    `<div class="statline"><span>${monthLabel(nextKey)} actually recorded paid</span><strong>${money(monthStats(nextKey).paid)}</strong></div>`
-  ].join('');
+  document.getElementById('dashCommHub').textContent=money(s.earned);
+  document.getElementById('dashCommHubSub').textContent=monthLabel(key);
+
 }
 
 function renderDealHandoverChecklist(){

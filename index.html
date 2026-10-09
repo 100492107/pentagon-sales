@@ -33,7 +33,7 @@ button{cursor:pointer}
 header{background:#111318;border-bottom:3px solid var(--red);padding:13px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;position:sticky;top:0;z-index:20}
 .brand{display:flex;align-items:center;gap:10px}.brandmark{width:44px;height:44px;flex:0 0 44px;border-radius:11px;object-fit:cover;display:block;box-shadow:0 0 0 1px rgba(255,255,255,.10),0 7px 20px rgba(22,131,255,.20);background:#05070b}
 .brand h1{font-size:16px;letter-spacing:-.02em;color:#fff}.brand p{font-size:10px;color:#9ea3aa;text-transform:uppercase;letter-spacing:.08em}
-.header-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.sync{font-size:10px;padding:5px 8px;border-radius:999px;background:#25292e;color:#aeb5bd}.sync.online{color:#8af0ae;background:rgba(34,197,94,.12)}.sync.error{color:#ff9ea9;background:rgba(239,68,68,.12)}
+.header-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap}.sync{font-size:10px;padding:5px 8px;border-radius:999px;background:#25292e;color:#aeb5bd}.sync.online{color:#8af0ae;background:rgba(34,197,94,.12)}.sync.error{color:#ff9ea9;background:rgba(239,68,68,.12)}.sync.syncing{color:#9ac6ff;background:rgba(96,165,250,.12)}.cloud-history-list{display:grid;gap:2px}
 .wrap{max-width:1220px;margin:0 auto;padding:18px}
 .tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 16px}.tab{border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:8px;padding:8px 11px;font-weight:700;font-size:12px}.tab.active{background:var(--red);color:#fff;border-color:var(--red)}
 .section{display:none}.section.active{display:block;animation:sectionIn .22s ease both}@keyframes sectionIn{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
@@ -494,7 +494,20 @@ header{
         <button class="btn" id="btnPush" onclick="pushToCloud(true)" disabled>Save now</button>
         <button class="btn" id="btnCloudSignout" onclick="signOutSupabase()" style="display:none">Sign out</button>
       </div>
-      <div class="note" id="cloudMsg" style="margin-top:8px">Sign in once on each device. After that, changes save to the cloud automatically.</div>    </div>
+      <div class="note" id="cloudMsg" style="margin-top:8px">Sign in once on each device. After that, changes save to the cloud automatically.</div>
+    </div>
+    <div class="card" id="cloudConflictCard" style="display:none;margin-top:12px">
+      <h2>Cloud conflict</h2>
+      <div class="note" id="cloudConflictMsg"></div>
+      <div class="toolbar" style="margin-top:10px">
+        <button class="btn primary" onclick="keepLocalAfterConflict()">Keep this device</button>
+        <button class="btn" onclick="loadCloudAfterConflict()">Load cloud copy</button>
+      </div>
+    </div>
+    <div class="card" id="cloudHistoryCard" style="display:none;margin-top:12px">
+      <div class="topline" style="margin-bottom:8px"><div><h2 style="margin-bottom:0">Cloud history</h2><div class="small">Last 30 saved states. A previous state is preserved automatically before every cloud update.</div></div><button class="btn sm" onclick="renderCloudHistory()">Refresh</button></div>
+      <div id="cloudHistoryList"></div>
+    </div>
   </section>
 </div>
 
@@ -575,7 +588,7 @@ header{
  </div>
 </div>
 
-<script src="app.js?v=20261009-1"></script>
+<script src="app.js?v=20261009-2"></script>
 <script src="playbook.js?v=20261008-4"></script>
 <script>
 if('serviceWorker' in navigator){

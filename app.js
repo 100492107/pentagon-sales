@@ -665,16 +665,195 @@ let sb = null;
 let sbSession = null;
 let cloudSaveTimer = null;
 let cloudSyncBusy = false;
+let cloudDirty = false;
+let localGeneration = Number(localStorage.getItem('ps_local_revision')||0);
+const CLOUD_HISTORY_TABLE = 'my_sales_hq_state_history';
 
+function currentCloudData(){
+  return {deals:deals.map(x=>cloneData(x)),tasks:tasks.map(x=>cloneData(x)),settings:cloneData(settings)};
+}
+function cloneData(x){
+  try{return JSON.parse(JSON.stringify(x||{}));}catch(e){return {};}
+}
+function deepEqual(a,b){
+  return JSON.stringify(a??null)===JSON.stringify(b??null);
+}
+function isPlainObject(x){
+  return x && typeof x==='object' && !Array.isArray(x) && Object.getPrototypeOf(x)===Object.prototype;
+}
+function normalizeCloudData(payload){
+  const base={
+    basic:20000,netTarget:3000,pension:0,otherDed:0,theme:'dark',
+    monthTargets:{},newVehicleTargets:{},naMonths:{}
+  };
+  return {
+    deals:Array.isArray(payload?.deals)?payload.deals.map(migrateDeal):[],
+    tasks:Array.isArray(payload?.tasks)?payload.tasks:[],
+    settings:{...base,...(payload?.settings||{})}
+  };
+}
+function applyCloudData(payload){
+  const x=normalizeCloudData(payload);
+  deals=x.deals;tasks=x.tasks;settings=x.settings;
+  settings.monthTargets=settings.monthTargets||{};
+  settings.newVehicleTargets=settings.newVehicleTargets||{};
+  settings.naMonths=settings.naMonths||{};
+}
+function getCloudVersion(){
+  const v=Number(localStorage.getItem('ps_cloud_version')||'0');
+  return v>0?v:null;
+}
+function setCloudVersion(v){
+  if(v===null||v===undefined)localStorage.removeItem('ps_cloud_version');
+  else localStorage.setItem('ps_cloud_version',String(v));
+}
+function getCloudBaseData(){
+  try{
+    const raw=localStorage.getItem('ps_cloud_base_data');
+    return raw?normalizeCloudData(JSON.parse(raw)):null;
+  }catch(e){return null;}
+}
+function setCloudBaseData(data,version,stamp){
+  localStorage.setItem('ps_cloud_base_data',JSON.stringify(normalizeCloudData(data)));
+  setCloudVersion(version);
+  if(stamp)localStorage.setItem('ps_last_cloud_sync',stamp);
+}
+function localIsDirty(){
+  const base=getCloudBaseData();
+  if(!base)return hasLocalData();
+  return !deepEqual(currentCloudData(),base);
+}
+function mergeValue(base,local,remote,conflicts,path){
+  const lChanged=!deepEqual(local,base);
+  const rChanged=!deepEqual(remote,base);
+  if(!lChanged&&!rChanged)return cloneData(base);
+  if(lChanged&&!rChanged)return cloneData(local);
+  if(!lChanged&&rChanged)return cloneData(remote);
+  if(deepEqual(local,remote))return cloneData(local);
+  if(isPlainObject(local)&&isPlainObject(remote)&&isPlainObject(base)){
+    const keys=new Set([...Object.keys(base||{}),...Object.keys(local||{}),...Object.keys(remote||{})]);
+    const out={};
+    keys.forEach(k=>{
+      const hasL=Object.prototype.hasOwnProperty.call(local||{},k);
+      const hasR=Object.prototype.hasOwnProperty.call(remote||{},k);
+      const hasB=Object.prototype.hasOwnProperty.call(base||{},k);
+      if(!hasL&&!hasR)return;
+      out[k]=mergeValue(hasB?base[k]:undefined,hasL?local[k]:undefined,hasR?remote[k]:undefined,conflicts,path?path+'.'+k:k);
+    });
+    return out;
+  }
+  conflicts.push(path||'data');
+  return cloneData(local);
+}
+function mergeCollection(baseArr,localArr,remoteArr,conflicts,label){
+  const b=new Map((baseArr||[]).map(x=>[x.id,x]));
+  const l=new Map((localArr||[]).map(x=>[x.id,x]));
+  const r=new Map((remoteArr||[]).map(x=>[x.id,x]));
+  const ids=[...new Set([...b.keys(),...l.keys(),...r.keys()])];
+  const out=[];
+  ids.forEach(id=>{
+    const bv=b.get(id),lv=l.get(id),rv=r.get(id),path=label+'.'+id;
+    if(bv===undefined){
+      if(lv===undefined&&rv!==undefined)out.push(cloneData(rv));
+      else if(rv===undefined&&lv!==undefined)out.push(cloneData(lv));
+      else if(lv!==undefined&&rv!==undefined){
+        if(deepEqual(lv,rv))out.push(cloneData(lv));
+        else{conflicts.push(path+' (both created differently)');out.push(cloneData(lv));}
+      }
+      return;
+    }
+    if(lv===undefined&&rv===undefined)return;
+    if(lv===undefined&&rv!==undefined){
+      if(deepEqual(rv,bv))return;
+      conflicts.push(path+' (deleted locally, changed remotely)');
+      out.push(cloneData(rv));return;
+    }
+    if(rv===undefined&&lv!==undefined){
+      if(deepEqual(lv,bv))return;
+      conflicts.push(path+' (changed locally, deleted remotely)');
+      out.push(cloneData(lv));return;
+    }
+    out.push(mergeValue(bv,lv,rv,conflicts,path));
+  });
+  return out;
+}
+function mergeCloudData(base,local,remote){
+  const conflicts=[];
+  const merged={
+    deals:mergeCollection(base?.deals||[],local?.deals||[],remote?.deals||[],conflicts,'deal'),
+    tasks:mergeCollection(base?.tasks||[],local?.tasks||[],remote?.tasks||[],conflicts,'task'),
+    settings:mergeValue(base?.settings||{},local?.settings||{},remote?.settings||{},conflicts,'settings')
+  };
+  return {data:merged,conflicts};
+}
+function mergeFirstRun(localData,cloudData){
+  const localDeals=localData.deals||[],cloudDeals=cloudData.deals||[];
+  const localTasks=localData.tasks||[],cloudTasks=cloudData.tasks||[];
+  const dealMap=new Map(cloudDeals.map(d=>[d.id,d]));
+  localDeals.forEach(d=>{if(!dealMap.has(d.id))dealMap.set(d.id,d);});
+  const taskMap=new Map(cloudTasks.map(t=>[t.id,t]));
+  localTasks.forEach(t=>{if(!taskMap.has(t.id))taskMap.set(t.id,t);});
+  return {
+    deals:[...dealMap.values()].map(migrateDeal),
+    tasks:[...taskMap.values()],
+    settings:{...localData.settings,...cloudData.settings}
+  };
+}
 function setSyncStatus(state,text){
   const el=document.getElementById('syncStatus');
   if(!el)return;
   el.className='sync '+state;
   el.textContent=text;
 }
-function getLocalUpdatedAt(){ return localStorage.getItem('ps_local_updated_at')||''; }
 function hasLocalData(){
   return deals.length>0 || tasks.length>0;
+}
+function persist(markLocal=true){
+  localStorage.setItem('ps_deals',JSON.stringify(deals));
+  localStorage.setItem('ps_tasks',JSON.stringify(tasks));
+  localStorage.setItem('ps_settings',JSON.stringify(settings));
+  if(markLocal){
+    localGeneration++;
+    localStorage.setItem('ps_local_revision',String(localGeneration));
+    localStorage.setItem('ps_local_updated_at',new Date().toISOString());
+    cloudDirty=true;
+  }
+}
+function cloudTimeLabel(stamp){
+  if(!stamp)return '';
+  const d=new Date(stamp);
+  if(isNaN(d))return '';
+  return d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+}
+function setCloudSynced(stamp,message='Cloud synced'){
+  const t=cloudTimeLabel(stamp||new Date().toISOString());
+  setSyncStatus('online',t?message+' · '+t:message);
+}
+function getCloudConflict(){
+  try{
+    const raw=localStorage.getItem('ps_cloud_conflict');
+    return raw?JSON.parse(raw):null;
+  }catch(e){return null;}
+}
+function clearCloudConflict(){
+  localStorage.removeItem('ps_cloud_conflict');
+  renderCloudConflict();
+}
+function saveCloudConflict(remote,base,local){
+  localStorage.setItem('ps_cloud_conflict',JSON.stringify({
+    detectedAt:new Date().toISOString(),remote,base,local
+  }));
+  renderCloudConflict();
+}
+function renderCloudConflict(){
+  const card=document.getElementById('cloudConflictCard');
+  const msg=document.getElementById('cloudConflictMsg');
+  if(!card||!msg)return;
+  const c=getCloudConflict();
+  if(!c){card.style.display='none';return;}
+  card.style.display='block';
+  const when=c.detectedAt?new Date(c.detectedAt).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'now';
+  msg.textContent='Another device changed My Sales HQ since this device last synced ('+when+'). No data was silently overwritten. Non-conflicting changes are merged automatically; overlapping changes need a choice below.';
 }
 function setCloudUi(){
   const email=document.getElementById('cloudEmail');
@@ -690,26 +869,34 @@ function setCloudUi(){
   if(signoutBtn)signoutBtn.style.display=authenticated?'inline-flex':'none';
   if(pullBtn)pullBtn.disabled=!authenticated;
   if(pushBtn)pushBtn.disabled=!authenticated;
+  const historyCard=document.getElementById('cloudHistoryCard');
+  if(historyCard)historyCard.style.display=authenticated?'block':'none';
+  renderCloudConflict();
 }
-function normalizeCloudData(payload){
-  return {
-    deals:Array.isArray(payload?.deals)?payload.deals.map(migrateDeal):[],
-    tasks:Array.isArray(payload?.tasks)?payload.tasks:[],
-    settings:{...settings,...(payload?.settings||{})}
-  };
+async function fetchCloudRow(){
+  const {data,error}=await sb.from(CLOUD_TABLE).select('data,updated_at,version').eq('id',sbSession.user.id).maybeSingle();
+  if(error)throw error;
+  return data||null;
 }
-function mergeFirstRun(localData,cloudData){
-  const localDeals=(localData.deals||[]), cloudDeals=(cloudData.deals||[]);
-  const localTasks=(localData.tasks||[]), cloudTasks=(cloudData.tasks||[]);
-  const dealMap=new Map(cloudDeals.map(d=>[d.id,d]));
-  localDeals.forEach(d=>{ if(!dealMap.has(d.id)) dealMap.set(d.id,d); });
-  const taskMap=new Map(cloudTasks.map(t=>[t.id,t]));
-  localTasks.forEach(t=>{ if(!taskMap.has(t.id)) taskMap.set(t.id,t); });
-  return {
-    deals:[...dealMap.values()].map(migrateDeal),
-    tasks:[...taskMap.values()],
-    settings:{...localData.settings,...cloudData.settings}
-  };
+async function fetchCloudHistory(){
+  if(!sb||!sbSession)return [];
+  const {data,error}=await sb.from(CLOUD_HISTORY_TABLE)
+    .select('id,source_version,created_at')
+    .eq('user_id',sbSession.user.id)
+    .order('created_at',{ascending:false})
+    .limit(30);
+  if(error)throw error;
+  return data||[];
+}
+async function renderCloudHistory(){
+  const wrap=document.getElementById('cloudHistoryList');
+  if(!wrap||!sbSession)return;
+  try{
+    const rows=await fetchCloudHistory();
+    wrap.innerHTML=rows.length?rows.map(h=>'<div class="statline"><span>Version '+esc(h.source_version)+' · '+esc(new Date(h.created_at).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}))+'</span><button class="btn sm" onclick="restoreCloudVersion(\''+esc(h.id)+'\')">Restore</button></div>').join(''):'<div class="empty">No saved cloud history yet. Versions appear automatically after the first cloud update.</div>';
+  }catch(e){
+    wrap.innerHTML='<div class="note">Could not load cloud history right now.</div>';
+  }
 }
 async function initSupabase(){
   try{
@@ -720,16 +907,13 @@ async function initSupabase(){
     if(error)throw error;
     sbSession=data.session||null;
     setCloudUi();
-    if(sbSession) await syncCloudState();
+    if(sbSession)await syncCloudState();
     else setSyncStatus('offline','Sign in to sync');
     sb.auth.onAuthStateChange((event,session)=>{
       sbSession=session||null;
       setCloudUi();
-      if(event==='SIGNED_IN' && sbSession){
-        setTimeout(()=>syncCloudState(),0);
-      }else if(event==='SIGNED_OUT'){
-        setSyncStatus('offline','Sign in to sync');
-      }
+      if(event==='SIGNED_IN'&&sbSession)setTimeout(()=>syncCloudState(),0);
+      else if(event==='SIGNED_OUT')setSyncStatus('offline','Sign in to sync');
     });
   }catch(e){
     sb=null;sbSession=null;setCloudUi();setSyncStatus('error','Cloud unavailable');
@@ -755,88 +939,229 @@ async function signInCloud(){
 async function signOutSupabase(){
   if(!sb)return;
   await sb.auth.signOut();
+  setCloudUi();
   setSyncStatus('offline','Sign in to sync');
   const msg=document.getElementById('cloudMsg');if(msg)msg.textContent='Signed out. Your local cache is still here.';
 }
+async function resolveCloudConflict(remoteRow){
+  const base=getCloudBaseData()||currentCloudData();
+  const local=currentCloudData();
+  const remote=normalizeCloudData(remoteRow.data||{});
+  const merged=mergeCloudData(base,local,remote);
+  if(merged.conflicts.length){
+    saveCloudConflict(remoteRow,base,local);
+    setSyncStatus('error','Conflict — review');
+    const msg=document.getElementById('cloudMsg');if(msg)msg.textContent='Cloud changed elsewhere. Choose how to resolve the overlap below.';
+    return false;
+  }
+  applyCloudData(merged.data);
+  persist(false);
+  setCloudBaseData(remote,remoteRow.version,remoteRow.updated_at);
+  cloudDirty=!deepEqual(merged.data,remote);
+  clearCloudConflict();
+  refreshAll();
+  if(cloudDirty){
+    return await pushToCloud(true);
+  }
+  setCloudSynced(remoteRow.updated_at,'Cloud synced');
+  await renderCloudHistory();
+  return true;
+}
 async function pushToCloud(immediate=false){
-  if(!sb||!sbSession||cloudSyncBusy)return;
+  if(!sb||!sbSession)return false;
   if(!immediate){
     clearTimeout(cloudSaveTimer);
     cloudSaveTimer=setTimeout(()=>pushToCloud(true),350);
-    return;
+    return true;
+  }
+  if(cloudSyncBusy){
+    clearTimeout(cloudSaveTimer);
+    cloudSaveTimer=setTimeout(()=>pushToCloud(true),500);
+    return true;
   }
   cloudSyncBusy=true;
-  setSyncStatus(navigator.onLine?'syncing':'offline','Saving to cloud…');
+  const genAtStart=localGeneration;
+  setSyncStatus(navigator.onLine?'syncing':'offline',navigator.onLine?'Saving to cloud…':'Offline · local cache active');
   try{
-    const stamp=new Date().toISOString();
-    const {data,error}=await sb.from(CLOUD_TABLE).upsert({
-      id:sbSession.user.id,
-      data:{deals,tasks,settings},
-      updated_at:stamp
-    }).select('updated_at').single();
+    let expectedVersion=getCloudVersion();
+    let row=await fetchCloudRow();
+    if(!row){
+      const {data,error}=await sb.from(CLOUD_TABLE).insert({
+        id:sbSession.user.id,
+        data:currentCloudData()
+      }).select('data,updated_at,version').single();
+      if(!error&&data){
+        setCloudBaseData(data.data,data.version,data.updated_at);
+        if(localGeneration===genAtStart)cloudDirty=false;
+        clearCloudConflict();
+        setCloudSynced(data.updated_at,'Cloud synced');
+        await renderCloudHistory();
+        return true;
+      }
+      if(error&&error.code!=='23505')throw error;
+      row=await fetchCloudRow();
+    }
+    if(expectedVersion===null)expectedVersion=row.version;
+    if(row.version!==expectedVersion){
+      const ok=await resolveCloudConflict(row);
+      return ok;
+    }
+    const submitted=currentCloudData();
+    const {data,error}=await sb.from(CLOUD_TABLE)
+      .update({data:submitted})
+      .eq('id',sbSession.user.id)
+      .eq('version',expectedVersion)
+      .select('data,updated_at,version')
+      .maybeSingle();
     if(error)throw error;
-    const cloudStamp=data?.updated_at||stamp;
-    localStorage.setItem('ps_local_updated_at',cloudStamp);
-    localStorage.setItem('ps_last_cloud_sync',cloudStamp);
-    setSyncStatus('online','Cloud synced');
+    if(!data){
+      const fresh=await fetchCloudRow();
+      if(!fresh)throw new Error('Cloud record disappeared unexpectedly.');
+      return await resolveCloudConflict(fresh);
+    }
+    setCloudBaseData(data.data,data.version,data.updated_at);
+    if(localGeneration===genAtStart)cloudDirty=false;
+    clearCloudConflict();
+    setCloudSynced(data.updated_at,'Cloud synced');
     const msg=document.getElementById('cloudMsg');if(msg)msg.textContent='Automatically synced '+deals.length+' deals / '+tasks.length+' tasks.';
+    await renderCloudHistory();
+    if(localGeneration!==genAtStart)cloudSave();
+    return true;
   }catch(e){
     setSyncStatus('error','Sync error');
     const msg=document.getElementById('cloudMsg');if(msg)msg.textContent='Cloud save failed: '+(e.message||e);
+    return false;
   }finally{
     cloudSyncBusy=false;
+    if(cloudDirty)setTimeout(()=>pushToCloud(true),250);
   }
 }
 async function syncCloudState(){
-  if(!sb||!sbSession||cloudSyncBusy)return;
+  if(!sb||!sbSession)return;
+  if(cloudSyncBusy){
+    setTimeout(()=>syncCloudState(),500);
+    return;
+  }
   cloudSyncBusy=true;
   setSyncStatus('syncing','Syncing cloud…');
   try{
-    const {data:row,error}=await sb.from(CLOUD_TABLE).select('data,updated_at').eq('id',sbSession.user.id).maybeSingle();
-    if(error)throw error;
+    const row=await fetchCloudRow();
     if(!row){
       cloudSyncBusy=false;
       await pushToCloud(true);
       return;
     }
-    const localStamp=getLocalUpdatedAt();
-    const localTs=localStamp?Date.parse(localStamp):0;
-    const cloudTs=row.updated_at?Date.parse(row.updated_at):0;
-    const cloudData=normalizeCloudData(row.data||{});
-    if(!localStamp && hasLocalData()){
-      const merged=mergeFirstRun({deals,tasks,settings},cloudData);
-      deals=merged.deals;tasks=merged.tasks;settings=merged.settings;
-      persist(false);loadSettingsUI();refreshAll();
-      cloudSyncBusy=false;
-      await pushToCloud(true);
+    const remote=normalizeCloudData(row.data||{});
+    const base=getCloudBaseData();
+    const storedVersion=getCloudVersion();
+    if(!base||storedVersion===null){
+      if(hasLocalData()){
+        const merged=mergeFirstRun({deals,tasks,settings},remote);
+        applyCloudData(merged);
+        persist(false);
+        setCloudBaseData(remote,row.version,row.updated_at);
+        cloudDirty=!deepEqual(merged,remote);
+        refreshAll();
+        cloudSyncBusy=false;
+        if(cloudDirty)await pushToCloud(true);
+        else{setCloudSynced(row.updated_at,'Cloud synced');await renderCloudHistory();}
+        return;
+      }
+      applyCloudData(remote);persist(false);setCloudBaseData(remote,row.version,row.updated_at);
+      cloudDirty=false;refreshAll();setCloudSynced(row.updated_at,'Cloud synced');await renderCloudHistory();
       return;
     }
-    if(localTs>cloudTs){
-      cloudSyncBusy=false;
-      await pushToCloud(true);
+    const local=currentCloudData();
+    if(storedVersion===row.version){
+      if(!deepEqual(local,base)){
+        cloudDirty=true;
+        cloudSyncBusy=false;
+        await pushToCloud(true);
+        return;
+      }
+      applyCloudData(remote);persist(false);setCloudBaseData(remote,row.version,row.updated_at);
+      cloudDirty=false;refreshAll();setCloudSynced(row.updated_at,'Cloud synced');await renderCloudHistory();
       return;
     }
-    deals=cloudData.deals;tasks=cloudData.tasks;settings=cloudData.settings;
-    settings.monthTargets=settings.monthTargets||{};
-    settings.newVehicleTargets=settings.newVehicleTargets||{};
-    settings.naMonths=settings.naMonths||{};
-    persist(false);loadSettingsUI();refreshAll();
-    localStorage.setItem('ps_local_updated_at',row.updated_at||new Date().toISOString());
-    localStorage.setItem('ps_last_cloud_sync',row.updated_at||new Date().toISOString());
-    setSyncStatus('online','Cloud synced');
-    const msg=document.getElementById('cloudMsg');if(msg)msg.textContent='Loaded '+deals.length+' deals / '+tasks.length+' tasks from cloud.';
+    if(!deepEqual(local,base)){
+      const merged=mergeCloudData(base,local,remote);
+      if(merged.conflicts.length){
+        saveCloudConflict(row,base,local);
+        setSyncStatus('error','Conflict — review');
+        const msg=document.getElementById('cloudMsg');if(msg)msg.textContent='Cloud changed elsewhere. Nothing has been overwritten.';
+        return;
+      }
+      applyCloudData(merged.data);persist(false);setCloudBaseData(remote,row.version,row.updated_at);
+      cloudDirty=!deepEqual(merged.data,remote);
+      refreshAll();cloudSyncBusy=false;
+      if(cloudDirty)await pushToCloud(true);
+      else{setCloudSynced(row.updated_at,'Cloud synced');await renderCloudHistory();}
+      return;
+    }
+    applyCloudData(remote);persist(false);setCloudBaseData(remote,row.version,row.updated_at);
+    cloudDirty=false;clearCloudConflict();refreshAll();
+    setCloudSynced(row.updated_at,'Cloud synced');await renderCloudHistory();
   }catch(e){
     setSyncStatus('error','Sync error');
     const msg=document.getElementById('cloudMsg');if(msg)msg.textContent='Cloud sync failed: '+(e.message||e);
   }finally{
     cloudSyncBusy=false;
+    if(cloudDirty)setTimeout(()=>pushToCloud(true),250);
+  }
+}
+async function keepLocalAfterConflict(){
+  const c=getCloudConflict();
+  if(!c)return;
+  setCloudBaseData(c.remote.data,c.remote.version,c.remote.updated_at);
+  cloudDirty=true;
+  clearCloudConflict();
+  await pushToCloud(true);
+}
+async function loadCloudAfterConflict(){
+  const c=getCloudConflict();
+  if(!c)return;
+  applyCloudData(c.remote.data);
+  persist(false);
+  setCloudBaseData(c.remote.data,c.remote.version,c.remote.updated_at);
+  cloudDirty=false;
+  clearCloudConflict();
+  refreshAll();
+  setCloudSynced(c.remote.updated_at,'Cloud synced');
+  await renderCloudHistory();
+}
+async function restoreCloudVersion(historyId){
+  if(!sb||!sbSession)return;
+  if(!confirm('Restore this saved cloud version? The current cloud state will first be preserved in history.'))return;
+  try{
+    const {data:history,error}=await sb.from(CLOUD_HISTORY_TABLE)
+      .select('data,source_version,created_at')
+      .eq('id',historyId)
+      .eq('user_id',sbSession.user.id)
+      .maybeSingle();
+    if(error)throw error;
+    if(!history){alert('That history version is no longer available.');return;}
+    const current=await fetchCloudRow();
+    if(!current){alert('No current cloud state is available.');return;}
+    applyCloudData(history.data);
+    persist();
+    setCloudBaseData(current.data,current.version,current.updated_at);
+    cloudDirty=true;
+    clearCloudConflict();
+    refreshAll();
+    await pushToCloud(true);
+  }catch(e){
+    const msg=document.getElementById('cloudMsg');if(msg)msg.textContent='Restore failed: '+(e.message||e);
   }
 }
 function pullFromCloud(){ return syncCloudState(); }
-function cloudSave(){ if(sb&&sbSession){ clearTimeout(cloudSaveTimer); cloudSaveTimer=setTimeout(()=>pushToCloud(true),250); } }
+function cloudSave(){
+  cloudDirty=true;
+  clearTimeout(cloudSaveTimer);
+  cloudSaveTimer=setTimeout(()=>pushToCloud(true),250);
+}
 function connectSupabase(){ return signInCloud(); }
 function disconnectSupabase(){ return signOutSupabase(); }
-window.addEventListener('online',()=>{ if(sbSession){ setSyncStatus('online','Back online · syncing…'); cloudSave(); } });
+window.addEventListener('online',()=>{ if(sbSession){ setSyncStatus('online','Back online · syncing…'); syncCloudState(); } });
 window.addEventListener('offline',()=>{ if(sbSession)setSyncStatus('offline','Offline · local cache active'); });
 
 function refreshAll(){

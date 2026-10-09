@@ -301,6 +301,7 @@ function renderSummary(){
   document.getElementById('dashExpected').textContent=money(next.expected);
   document.getElementById('dashExpectedSub').textContent=monthLabel(next.key)+' payslip view';
   document.getElementById('dashPaid').textContent=money(s.paid);
+  const dashGap=document.getElementById('dashCommGap');if(dashGap)dashGap.textContent=money(Math.max(0,target-s.earned));
   const openTasks=tasks.filter(t=>!t.done);
   const overdue=openTasks.filter(t=>t.due && t.due<todayKey()).length;
   document.getElementById('dashWork').textContent=String(openTasks.length);

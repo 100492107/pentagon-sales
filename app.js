@@ -473,28 +473,6 @@ function deleteCalendarEvent(id){
   calendarEvents=calendarEvents.filter(x=>x.id!==id);persist();closeCalendarModal();refreshAll();cloudSave();
 }
 
-function renderDashboard(){
-  const key=currentMonthKey(),s=monthStats(key);
-  const attention=deals.filter(d=>dealRisk(d).length).sort((a,b)=>(a.deliveryDate||'').localeCompare(b.deliveryDate||'')).slice(0,8);
-  document.getElementById('dashAttention').innerHTML=attention.length?attention.map(d=>`<div class="task"><div class="task-main"><div class="task-title">${esc(d.customer||'Unnamed')} · ${esc(d.vehicle||'Vehicle')}</div><div class="task-meta">${STAGE_LABELS[d.stage]||d.stage} · ${esc(dealRisk(d)[0])}</div></div><button class="btn sm" onclick="openDealModal('${d.id}')">Open</button></div>`).join(''):'<div class="empty">No commission or deal-risk flags.</div>';
-  const target=monthTarget(key);
-  document.getElementById('dashBreakdown').innerHTML=[
-    ['Orders logged',deals.filter(d=>monthKey(d.orderDate)===key).length],
-    ['Delivered',s.units],
-    ['New Retail',s.newUnits],
-    ['Motability',s.motab],
-    ['Used',s.used],
-    ['Commission adjustments',money(s.adjustments)]
-  ].map(x=>`<div class="statline"><span>${esc(x[0])}</span><strong>${esc(x[1])}</strong></div>`).join('')+(target===null?'':`<div class="statline"><span>Monthly unit target</span><strong>${target}</strong></div>`);
-  const nextKey=payMonthForCurrent(), prev=monthStats(currentMonthKey());
-  const flow=[
-    `<div class="statline"><span>${monthLabel(key)} earned</span><strong>${money(prev.earned)}</strong></div>`,
-    `<div class="statline"><span>${monthLabel(nextKey)} expected from this month's earned commission</span><strong>${money(monthStats(nextKey).expected)}</strong></div>`,
-    `<div class="statline"><span>${monthLabel(nextKey)} actually recorded paid</span><strong>${money(monthStats(nextKey).paid)}</strong></div>`
-  ];
-  document.getElementById('dashFlow').innerHTML=flow.join('');
-}
-
 function taskDueClass(t){
   if(t.done)return 'done';
   if(!t.due)return '';

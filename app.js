@@ -36,7 +36,6 @@ let settings = JSON.parse(localStorage.getItem('ps_settings') || JSON.stringify(
 }));
 settings.monthTargets=settings.monthTargets||{};
 settings.newVehicleTargets=settings.newVehicleTargets||{};settings.naMonths=settings.naMonths||{};
-let sb = null;
 let paymentContext = null;
 let openDealId = null;
 

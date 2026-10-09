@@ -302,10 +302,6 @@ function renderSummary(){
   document.getElementById('dashExpectedSub').textContent=monthLabel(next.key)+' payslip view';
   document.getElementById('dashPaid').textContent=money(s.paid);
   const dashGap=document.getElementById('dashCommGap');if(dashGap)dashGap.textContent=money(Math.max(0,target-s.earned));
-  const openTasks=tasks.filter(t=>!t.done);
-  const overdue=openTasks.filter(t=>t.due && t.due<todayKey()).length;
-  document.getElementById('dashWork').textContent=String(openTasks.length);
-  document.getElementById('dashWorkSub').textContent=overdue?overdue+' overdue':'Open customer tasks';
 }
 const HANDOVER_STEPS=[
   ['prep','Prep'],['service','Service'],['mot','MOT'],['cosmetic','Cosmetic'],['valet','Valet'],['documents','Docs / keys']

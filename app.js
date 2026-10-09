@@ -889,7 +889,7 @@ function isPlainObject(x){
 function normalizeCloudData(payload){
   const base={
     basic:20000,netTarget:3000,pension:0,otherDed:0,theme:'dark',
-    monthTargets:{},newVehicleTargets:{},naMonths:{}
+    monthTargets:{},newVehicleTargets:{},naMonths:{},scheduleType:'A',scheduleAnchor:mondayKeyFromDate()
   };
   return {
     deals:Array.isArray(payload?.deals)?payload.deals.map(migrateDeal):[],

@@ -416,6 +416,7 @@ input[type="checkbox"]{accent-color:var(--red)}
   .hub-handover-head{flex-direction:column;gap:4px}.hub-date{white-space:normal}
 }
 
+.calendar-col-head em{font-style:normal;font-size:8px;color:var(--muted);margin-top:3px;display:block}.calendar-col.off-col{background:rgba(127,127,127,.035)}.calendar-col.off-col .calendar-col-head{background:rgba(127,127,127,.05)}.calendar-day-status{display:flex;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:9px;background:var(--card2);margin-bottom:8px;font-size:11px}.calendar-day-status span{color:var(--muted)}.calendar-day-status.off strong{color:var(--muted)}.calendar-cell-date{display:flex;justify-content:space-between;gap:6px}.calendar-cell-date em{font-style:normal;font-size:7px;color:var(--muted);white-space:nowrap}.calendar-cell.off-cell{background:rgba(127,127,127,.035)}
 </style>
 </head>
 <body data-theme="dark">
@@ -461,32 +462,17 @@ input[type="checkbox"]{accent-color:var(--red)}
   </div>
 
   <section class="section active" id="sec-dashboard">
-    <div class="topline"><div><div class="eyebrow">Command centre</div><h2>Home Hub</h2></div><div class="small">Everything that needs your eyes first.</div></div>
+    <div class="topline"><div><div class="eyebrow">Command centre</div><h2>Home Hub</h2></div><div class="small">Today first. Handovers second. Nothing unnecessary.</div></div>
     <div class="grid g4">
-      <div class="card"><h2>Handovers today</h2><div class="stat blue" id="dashHandoversToday">0</div><div class="small" id="dashHandoversSub">No handovers scheduled today</div></div>
+      <div class="card"><h2>Today</h2><div class="stat blue" id="dashTodayStatus">—</div><div class="small" id="dashTodaySub">—</div></div>
+      <div class="card"><h2>Handovers today</h2><div class="stat" id="dashHandoversToday">0</div><div class="small" id="dashHandoversSub">—</div></div>
       <div class="card"><h2>Next 7 days</h2><div class="stat" id="dashNextHandovers">0</div><div class="small" id="dashNextHandoversSub">Nothing scheduled</div></div>
-      <div class="card"><h2>Readiness issues</h2><div class="stat yellow" id="dashReadiness">0</div><div class="small" id="dashReadinessSub">All scheduled handovers ready</div></div>
-      
-    </div>
-<div class="grid g4" style="margin-top:12px">
-      <div class="card"><h2>Commission this month</h2><div class="stat green" id="dashEarned">—</div><div class="small" id="dashEarnedSub">—</div><div class="progress"><div class="fill" id="dashCommProgress" style="width:0%"></div></div></div>
-      <div class="card"><h2>Expected next payslip</h2><div class="stat blue" id="dashExpected">—</div><div class="small" id="dashExpectedSub">—</div></div>
-      <div class="card"><h2>Actually paid</h2><div class="stat" id="dashPaid">£0</div><div class="small">Only payments you record</div></div>
-      <div class="card"><h2>Commission still to chase</h2><div class="stat yellow" id="dashCommGap">—</div><div class="small">Current month gap to commission target</div></div>
+      <div class="card"><h2>Commission</h2><div class="stat green" id="dashCommHub">£0</div><div class="small" id="dashCommHubSub">—</div></div>
     </div>
     <div class="grid g2" style="margin-top:12px">
       <div class="card"><h2>Today's handovers</h2><div id="dashTodayHandovers"></div></div>
-      <div class="card"><h2>Today's priorities</h2><div id="dashTodayWork"></div></div>
-    </div>
-    <div class="grid g2" style="margin-top:12px">
       <div class="card"><h2>Next handovers</h2><div id="dashUpcomingHandovers"></div></div>
-      
     </div>
-    <div class="grid g2" style="margin-top:12px">
-      <div class="card"><h2>Deals needing attention</h2><div id="dashAttention"></div></div>
-      <div class="card"><h2>This month</h2><div id="dashBreakdown"></div></div>
-    </div>
-    <div class="card" style="margin-top:12px"><h2>Commission flow</h2><div id="dashFlow"></div></div>
   </section>
 
   <section class="section" id="sec-work">

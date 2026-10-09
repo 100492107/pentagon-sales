@@ -450,7 +450,7 @@ input[type="checkbox"]{accent-color:var(--red)}
   </div>
 
   <div class="tabs">
-    <button class="tab active" data-tab="dashboard">Dashboard</button>
+    <button class="tab active" data-tab="dashboard">Home Hub</button>
     <button class="tab" data-tab="work">Work</button>
     <button class="tab" data-tab="deals">Deals</button>
     <button class="tab" data-tab="commission">Commission</button>
@@ -466,6 +466,12 @@ input[type="checkbox"]{accent-color:var(--red)}
       <div class="card"><h2>Next 7 days</h2><div class="stat" id="dashNextHandovers">0</div><div class="small" id="dashNextHandoversSub">Nothing scheduled</div></div>
       <div class="card"><h2>Readiness issues</h2><div class="stat yellow" id="dashReadiness">0</div><div class="small" id="dashReadinessSub">All scheduled handovers ready</div></div>
       <div class="card"><h2>Open work</h2><div class="stat red" id="dashWork">0</div><div class="small" id="dashWorkSub">Open customer tasks</div></div>
+    </div>
+<div class="grid g4" style="margin-top:12px">
+      <div class="card"><h2>Commission this month</h2><div class="stat green" id="dashEarned">—</div><div class="small" id="dashEarnedSub">—</div><div class="progress"><div class="fill" id="dashCommProgress" style="width:0%"></div></div></div>
+      <div class="card"><h2>Expected next payslip</h2><div class="stat blue" id="dashExpected">—</div><div class="small" id="dashExpectedSub">—</div></div>
+      <div class="card"><h2>Actually paid</h2><div class="stat" id="dashPaid">£0</div><div class="small">Only payments you record</div></div>
+      <div class="card"><h2>Commission still to chase</h2><div class="stat yellow" id="dashCommGap">—</div><div class="small">Current month gap to commission target</div></div>
     </div>
     <div class="grid g2" style="margin-top:12px">
       <div class="card"><h2>Today's handovers</h2><div id="dashTodayHandovers"></div></div>

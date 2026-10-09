@@ -758,7 +758,7 @@ async function signOutSupabase(){
   setSyncStatus('offline','Sign in to sync');
   const msg=document.getElementById('cloudMsg');if(msg)msg.textContent='Signed out. Your local cache is still here.';
 }
-async async function pushToCloud(immediate=false){
+async function pushToCloud(immediate=false){
   if(!sb||!sbSession||cloudSyncBusy)return;
   if(!immediate){
     clearTimeout(cloudSaveTimer);

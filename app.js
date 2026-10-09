@@ -25,8 +25,8 @@ const ANNUAL_YEAR = nowForScheme.getMonth() >= 6 ? nowForScheme.getFullYear() : 
 const ANNUAL_START = ANNUAL_YEAR+'-07-01';
 const ANNUAL_END   = (ANNUAL_YEAR+1)+'-06-30';
 const ORDER_COMMISSION_START = '2026-07-01';
-const SUPABASE_URL = 'https://zvyioxhwdyocaanzcgqf.supabase.co';
-const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_0JYQARzlCx8BYd1cxtEigg_qkfSQqaN';
+const SUPABASE_URL = 'https://fwrvpjxxcdmeuukjwhjp.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_VRXsdVEqBBCQ1YUHYrHf8Q_szqZWGsx';
 const CLOUD_TABLE = 'my_sales_hq_state';
 
 let deals = JSON.parse(localStorage.getItem('ps_deals') || '[]');

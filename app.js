@@ -870,6 +870,69 @@ let cloudDirty = false;
 let localGeneration = Number(localStorage.getItem('ps_local_revision')||0);
 const CLOUD_HISTORY_TABLE = 'my_sales_hq_state_history';
 
+const AUTH_COOKIE_PREFIX = 'my_sales_hq_auth_';
+const AUTH_COOKIE_CHUNK_SIZE = 3000;
+
+function authCookieParts(){
+  const map={};
+  document.cookie.split(';').forEach(part=>{
+    const [rawName,...rest]=part.trim().split('=');
+    if(!rawName||!rawName.startsWith(AUTH_COOKIE_PREFIX))return;
+    map[rawName]=rest.join('=');
+  });
+  return map;
+}
+function clearAuthCookies(){
+  const map=authCookieParts();
+  Object.keys(map).forEach(name=>{
+    document.cookie=name+'=; Path=/; Max-Age=0; SameSite=Lax; Secure';
+  });
+}
+function writeAuthCookie(key,value){
+  if(!key||!key.includes('-auth-token'))return;
+  clearAuthCookies();
+  if(value==null)return;
+  const encoded=encodeURIComponent(String(value));
+  const count=Math.max(1,Math.ceil(encoded.length/AUTH_COOKIE_CHUNK_SIZE));
+  document.cookie=AUTH_COOKIE_PREFIX+'count='+count+'; Path=/; Max-Age=31536000; SameSite=Lax; Secure';
+  for(let i=0;i<count;i++){
+    const chunk=encoded.slice(i*AUTH_COOKIE_CHUNK_SIZE,(i+1)*AUTH_COOKIE_CHUNK_SIZE);
+    document.cookie=AUTH_COOKIE_PREFIX+i+'='+chunk+'; Path=/; Max-Age=31536000; SameSite=Lax; Secure';
+  }
+}
+function readAuthCookie(){
+  const map=authCookieParts();
+  const count=Number(map[AUTH_COOKIE_PREFIX+'count']||0);
+  if(!count)return null;
+  let encoded='';
+  for(let i=0;i<count;i++){
+    const chunk=map[AUTH_COOKIE_PREFIX+i];
+    if(chunk===undefined)return null;
+    encoded+=chunk;
+  }
+  try{return decodeURIComponent(encoded);}catch(e){return null;}
+}
+const authStorage = {
+  getItem(key){
+    try{
+      const local=localStorage.getItem(key);
+      if(local!==null){
+        if(key.includes('-auth-token'))writeAuthCookie(key,local);
+        return local;
+      }
+    }catch(e){}
+    return key.includes('-auth-token')?readAuthCookie():null;
+  },
+  setItem(key,value){
+    localStorage.setItem(key,value);
+    if(key.includes('-auth-token'))writeAuthCookie(key,value);
+  },
+  removeItem(key){
+    localStorage.removeItem(key);
+    if(key.includes('-auth-token'))clearAuthCookies();
+  }
+};
+
 function currentCloudData(){
   return {deals:deals.map(x=>cloneData(x)),tasks:tasks.map(x=>cloneData(x)),calendarEvents:calendarEvents.map(x=>cloneData(x)),settings:cloneData(settings)};
 }
@@ -887,7 +950,7 @@ function isPlainObject(x){
 function normalizeCloudData(payload){
   const base={
     basic:20000,netTarget:3000,pension:0,otherDed:0,theme:'dark',
-    monthTargets:{},newVehicleTargets:{},naMonths:{},scheduleType:'A',scheduleAnchor:'2026-10-12',scheduleType:'A',scheduleAnchor:mondayKeyFromDate()
+    monthTargets:{},newVehicleTargets:{},naMonths:{},scheduleType:'A',scheduleAnchor:'2026-10-12'
   };
   return {
     deals:Array.isArray(payload?.deals)?payload.deals.map(migrateDeal):[],
@@ -1111,11 +1174,14 @@ async function renderCloudHistory(){
 async function initSupabase(){
   try{
     sb=supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{
-      auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
+      auth:{storage:authStorage,persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
     });
     const {data,error}=await sb.auth.getSession();
     if(error)throw error;
     sbSession=data.session||null;
+    if(sbSession){
+      try{writeAuthCookie('sb-'+SUPABASE_URL.split('//')[1].split('.')[0]+'-auth-token',localStorage.getItem('sb-'+SUPABASE_URL.split('//')[1].split('.')[0]+'-auth-token'));}catch(e){}
+    }
     setCloudUi();
     if(sbSession){await syncCloudState();startCloudWatcher();}
     else setSyncStatus('offline','Sign in to sync');

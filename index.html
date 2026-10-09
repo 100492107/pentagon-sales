@@ -551,6 +551,16 @@ input[type="checkbox"]{accent-color:var(--red)}
         </div>
         <button class="btn primary" style="margin-top:10px" onclick="saveSettings()">Save</button>
       </div>
+      <div class="card"><h2>Work pattern</h2>
+        <div class="note" style="margin-bottom:10px">Your rota repeats Week A → Week B → Week A → Week B until you change it.</div>
+        <div class="formgrid">
+          <div><label>Week beginning</label><input class="input" type="date" id="setScheduleAnchor"></div>
+          <div><label>That week is</label><select id="setScheduleType"><option value="A">Week A</option><option value="B">Week B</option></select></div>
+        </div>
+        <div class="note" style="margin-top:10px">Week A: Mon/Sun off · Tue–Fri 08:30–18:00 · Sat 09:00–17:00.<br>Week B: Mon/Tue off · Wed–Fri 08:30–18:00 · Sat 09:00–17:00 · Sun 10:00–16:00.</div>
+        <button class="btn primary" style="margin-top:10px" onclick="saveWorkPattern()">Save work pattern</button>
+      </div>
+
       <div class="card"><h2>Targets &amp; scheme rules</h2>
         <div class="formgrid">
           <div><label>Month</label><input class="input" type="month" id="setTargetMonth"></div>

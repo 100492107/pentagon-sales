@@ -54,12 +54,6 @@ function currentMonthKey(){ return monthKey(todayKey()); }
 function previousMonthKey(){ const d=new Date(); d.setMonth(d.getMonth()-1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
 function annualMonths(){ const out=[]; const d=new Date(ANNUAL_YEAR,6,1,12); for(let i=0;i<12;i++){ out.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')); d.setMonth(d.getMonth()+1); } return out; }
 
-function persist(markLocal=true){
-  localStorage.setItem('ps_deals', JSON.stringify(deals));
-  localStorage.setItem('ps_tasks', JSON.stringify(tasks));
-  localStorage.setItem('ps_settings', JSON.stringify(settings));
-  if(markLocal) localStorage.setItem('ps_local_updated_at', new Date().toISOString());
-}
 function normalizeStage(d){
   if(d.stage) return d.stage;
   if(d.status==='lead') return 'lead';

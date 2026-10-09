@@ -328,11 +328,11 @@ function taskDueClass(t){
 function taskHtml(t){
   const d=deals.find(x=>x.id===t.dealId);
   return `<div class="task ${t.done?'done':''}">
-    <input type="checkbox" ${t.done?'checked':''} onchange="toggleTask('${t.id}')">
+    <input type="checkbox" aria-label="${t.done?'Mark task open':'Mark task done'}" ${t.done?'checked':''} onchange="toggleTask('${t.id}')">
     <div class="task-main"><div class="task-title">${esc(t.title)}</div>
     <div class="task-meta">${esc(t.type||'Other')} · ${d?esc(d.customer):'No linked deal'} · ${t.due?dateLabel(t.due):'No due date'} ${t.priority==='high'?'· HIGH':''}</div>
     ${t.notes?`<div class="task-meta">${esc(t.notes)}</div>`:''}</div>
-    <button class="btn sm" onclick="openTaskForEdit('${t.id}')">Edit</button>
+    <div class="task-actions"><button class="btn sm" type="button" onclick="openTaskForEdit('${t.id}')">Edit</button><button class="btn sm danger" type="button" onclick="deleteTask('${t.id}')">Delete</button></div>
   </div>`;
 }
 function renderWork(){
@@ -345,8 +345,13 @@ function renderWork(){
   document.getElementById('workAll').innerHTML=open.length?open.map(taskHtml).join(''):'<div class="empty">No open customer work.</div>';
 }
 function openTaskModal(id=''){
-  const el=document.getElementById('taskModal'); el.classList.add('show');
-  const t=tasks.find(x=>x.id===id);
+  const t=id?tasks.find(x=>x.id===id):null;
+  if(id&&!t)return;
+  const el=document.getElementById('taskModal');
+  el.classList.add('show');
+  document.getElementById('taskModalTitle').textContent=t?'Edit work item':'New work item';
+  document.getElementById('taskSubmit').textContent=t?'Save task':'Add task';
+  document.getElementById('taskDeleteBtn').style.display=t?'inline-flex':'none';
   document.getElementById('tDeal').innerHTML='<option value="">No linked deal</option>'+deals.map(d=>`<option value="${esc(d.id)}">${esc(d.customer||'Unnamed')} · ${esc(d.vehicle||'Vehicle')}</option>`).join('');
   document.getElementById('tDeal').value=t?.dealId||'';
   document.getElementById('tTitle').value=t?.title||'';
@@ -355,9 +360,16 @@ function openTaskModal(id=''){
   document.getElementById('tPriority').value=t?.priority||'normal';
   document.getElementById('tNotes').value=t?.notes||'';
   el.dataset.editId=id;
+  requestAnimationFrame(()=>document.getElementById('tTitle').focus());
 }
 function closeTaskModal(){document.getElementById('taskModal').classList.remove('show')}
 function openTaskForEdit(id){openTaskModal(id)}
+function deleteTask(id){
+  const t=tasks.find(x=>x.id===id);if(!t)return;
+  if(!confirm('Delete this work item?'))return;
+  tasks=tasks.filter(x=>x.id!==id);
+  persist();refreshAll();cloudSave();
+}
 function saveTask(e){
   e.preventDefault();
   const id=document.getElementById('taskModal').dataset.editId||'';
@@ -451,9 +463,12 @@ function renderDealTasks(){
   document.getElementById('dealTasks').innerHTML=rows.length?rows.map(taskHtml).join(''):'<div class="empty">No work items for this customer.</div>';
 }
 function openDealModal(id=''){
+  const existing=id?deals.find(x=>x.id===id):null;
+  if(id&&!existing)return;
   openDealId=id||'';
   const el=document.getElementById('dealModal');el.classList.add('show');
   document.getElementById('dealModalTitle').textContent=id?'Edit deal':'Add deal';
+  document.getElementById('deleteDealBtn').style.display=id?'inline-flex':'none';
   document.getElementById('editId').value=id;
   document.getElementById('quickTaskDue').value=todayKey();
   document.getElementById('adjDate').value=todayKey();
@@ -512,8 +527,11 @@ function removeDealAdjustment(index){
   if(!confirm('Remove this adjustment?'))return;d.adjustments.splice(index,1);persist();renderDealAdjustments();refreshAll();cloudSave();
 }
 function deleteDeal(id){
-  if(!confirm('Delete this deal and linked work?'))return;
-  deals=deals.filter(d=>d.id!==id);tasks=tasks.filter(t=>t.dealId!==id);persist();refreshAll();cloudSave();
+  const d=deals.find(x=>x.id===id);if(!d)return;
+  if(!confirm('Delete this deal and all linked work? This also syncs the deletion to your cloud account.'))return;
+  deals=deals.filter(x=>x.id!==id);tasks=tasks.filter(t=>t.dealId!==id);
+  if(openDealId===id)closeDealModal();
+  persist();refreshAll();cloudSave();
 }
 
 function populateCommissionMonths(){
@@ -594,8 +612,14 @@ function openPaymentModal(dealId,eventId){
 }
 function closePaymentModal(){document.getElementById('paymentModal').classList.remove('show');paymentContext=null}
 function savePayment(){
-  if(!paymentContext)return;const d=deals.find(x=>x.id===paymentContext.dealId);if(!d)return;
-  d.payments=d.payments||{};d.payments[paymentContext.eventId]={amount:Number(document.getElementById('payAmount').value)||0,date:document.getElementById('payDate').value,note:document.getElementById('payNote').value.trim()};
+  if(!paymentContext)return;
+  const d=deals.find(x=>x.id===paymentContext.dealId);if(!d)return;
+  const amount=Number(document.getElementById('payAmount').value);
+  const date=document.getElementById('payDate').value;
+  if(!Number.isFinite(amount)||amount<=0){alert('Enter a paid amount greater than £0.');return}
+  if(!date){alert('Choose the payment date.');return}
+  d.payments=d.payments||{};
+  d.payments[paymentContext.eventId]={amount,date,note:document.getElementById('payNote').value.trim()};
   persist();closePaymentModal();refreshAll();if(openDealId)openDealModal(openDealId);cloudSave();
 }
 
@@ -634,9 +658,14 @@ function loadSettingsUI(){
   setTheme(settings.theme||'dark');
 }
 
+function downloadBlob(blob,filename){
+  const url=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
 function exportJSON(){
-  const payload={version:8,deals,tasks,settings,exported:new Date().toISOString()};
-  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='pentagon-sales-'+todayKey()+'.json';a.click();
+  const payload={version:9,deals,tasks,settings,exported:new Date().toISOString()};
+  downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),'my-sales-hq-'+todayKey()+'.json');
 }
 function exportCSV(){
   const headers=['Customer','Phone','Email','Vehicle','Stock/Reg','Type','Stage','Lead Date','Order / Invoice Date','Expected Delivery','Delivery Date','Finance Payout','F&I','Earned Commission','Expected Next Pay','CSI','Notes'];
@@ -645,19 +674,36 @@ function exportCSV(){
     const note=(d.journal||[]).map(x=>x.text).join(' | ');
     return [d.customer,d.phone,d.email,d.vehicle,d.stock,d.type,STAGE_LABELS[d.stage]||d.stage,d.leadDate,d.orderDate,d.expectedDeliveryDate,d.deliveryDate,d.financePayoutDate,(d.fi||[]).map(k=>FI_LABELS[k]).join('; '),earned,expected,d.csi??'',note].map(x=>'"'+String(x??'').replace(/"/g,'""')+'"').join(',');
   });
-  const blob=new Blob([[headers.join(','),...rows].join('\n')],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='pentagon-sales-deals-'+todayKey()+'.csv';a.click();
+  downloadBlob(new Blob([[headers.join(','),...rows].join('\n')],{type:'text/csv'}),'my-sales-hq-deals-'+todayKey()+'.csv');
 }
 function importData(e){
-  const file=e.target.files?.[0];if(!file)return;const r=new FileReader();r.onload=ev=>{
-    try{const x=JSON.parse(ev.target.result);deals=(x.deals||[]).map(migrateDeal);tasks=Array.isArray(x.tasks)?x.tasks:tasks;settings={...settings,...(x.settings||{})};settings.monthTargets=settings.monthTargets||{};settings.newVehicleTargets=settings.newVehicleTargets||{};settings.naMonths=settings.naMonths||{};persist();loadSettingsUI();refreshAll();cloudSave();alert('Imported '+deals.length+' deals.')}catch(err){alert('Invalid JSON backup.')}
-  };r.readAsText(file);
+  const file=e.target.files?.[0];if(!file)return;
+  const r=new FileReader();r.onload=ev=>{
+    try{
+      const x=JSON.parse(ev.target.result);
+      if(!Array.isArray(x.deals)||!Array.isArray(x.tasks))throw new Error('Invalid backup shape');
+      if((deals.length||tasks.length)&&!confirm('Import this backup and replace the current sales diary on this device? It will also become the cloud copy after sync.'))return;
+      deals=x.deals.map(migrateDeal);
+      tasks=x.tasks;
+      settings={...settings,...(x.settings||{})};
+      settings.monthTargets=settings.monthTargets||{};settings.newVehicleTargets=settings.newVehicleTargets||{};settings.naMonths=settings.naMonths||{};
+      persist();loadSettingsUI();refreshAll();cloudSave();
+      alert('Imported '+deals.length+' deals and '+tasks.length+' work items.');
+    }catch(err){alert('Invalid My Sales HQ JSON backup.')}
+    finally{e.target.value='';}
+  };
+  r.readAsText(file);
 }
-function clearAll(){deals=[];tasks=[];localStorage.removeItem('ps_deals');localStorage.removeItem('ps_tasks');persist();refreshAll();cloudSave()}
+function clearAll(){
+  if(!confirm('Delete every deal and work item from My Sales HQ? This also syncs the deletion to your cloud account.'))return;
+  deals=[];tasks=[];localStorage.removeItem('ps_deals');localStorage.removeItem('ps_tasks');persist();refreshAll();cloudSave();
+}
 
 /* Automatic cloud sync: Supabase is the source of truth; localStorage is the offline cache. */
 let sb = null;
 let sbSession = null;
 let cloudSaveTimer = null;
+let cloudRefreshTimer = null;
 let cloudSyncBusy = false;
 let cloudDirty = false;
 let localGeneration = Number(localStorage.getItem('ps_local_revision')||0);
@@ -903,13 +949,18 @@ async function initSupabase(){
     if(error)throw error;
     sbSession=data.session||null;
     setCloudUi();
-    if(sbSession)await syncCloudState();
+    if(sbSession){await syncCloudState();startCloudWatcher();}
     else setSyncStatus('offline','Sign in to sync');
     sb.auth.onAuthStateChange((event,session)=>{
       sbSession=session||null;
       setCloudUi();
-      if(event==='SIGNED_IN'&&sbSession)setTimeout(()=>syncCloudState(),0);
-      else if(event==='SIGNED_OUT')setSyncStatus('offline','Sign in to sync');
+      if(event==='SIGNED_IN'&&sbSession){
+        startCloudWatcher();
+        setTimeout(()=>syncCloudState(),0);
+      }else if(event==='SIGNED_OUT'){
+        stopCloudWatcher();
+        setSyncStatus('offline','Sign in to sync');
+      }
     });
   }catch(e){
     sb=null;sbSession=null;setCloudUi();setSyncStatus('error','Cloud unavailable');
@@ -932,8 +983,17 @@ async function signInCloud(){
     document.getElementById('cloudMsg').textContent='Sign-in failed: '+(e.message||e);
   }
 }
+function stopCloudWatcher(){
+  if(cloudRefreshTimer){clearInterval(cloudRefreshTimer);cloudRefreshTimer=null;}
+}
+function startCloudWatcher(){
+  stopCloudWatcher();
+  if(!sbSession)return;
+  cloudRefreshTimer=setInterval(()=>{if(navigator.onLine&&document.visibilityState==='visible')syncCloudState();},30000);
+}
 async function signOutSupabase(){
   if(!sb)return;
+  stopCloudWatcher();
   await sb.auth.signOut();
   setCloudUi();
   setSyncStatus('offline','Sign in to sync');
@@ -1033,11 +1093,8 @@ async function pushToCloud(immediate=false){
   }
 }
 async function syncCloudState(){
-  if(!sb||!sbSession)return;
-  if(cloudSyncBusy){
-    setTimeout(()=>syncCloudState(),500);
-    return;
-  }
+  if(!sb||!sbSession||!navigator.onLine)return;
+  if(cloudSyncBusy)return;
   cloudSyncBusy=true;
   setSyncStatus('syncing','Syncing cloud…');
   try{
@@ -1064,7 +1121,7 @@ async function syncCloudState(){
         return;
       }
       applyCloudData(remote);persist(false);setCloudBaseData(remote,row.version,row.updated_at);
-      cloudDirty=false;refreshAll();setCloudSynced(row.updated_at,'Cloud synced');await renderCloudHistory();
+      cloudDirty=false;refreshAll();setCloudSynced(row.updated_at,'Cloud synced');
       return;
     }
     const local=currentCloudData();
@@ -1096,7 +1153,7 @@ async function syncCloudState(){
     }
     applyCloudData(remote);persist(false);setCloudBaseData(remote,row.version,row.updated_at);
     cloudDirty=false;clearCloudConflict();refreshAll();
-    setCloudSynced(row.updated_at,'Cloud synced');await renderCloudHistory();
+    setCloudSynced(row.updated_at,'Cloud synced');
   }catch(e){
     setSyncStatus('error','Sync error');
     const msg=document.getElementById('cloudMsg');if(msg)msg.textContent='Cloud sync failed: '+(e.message||e);
@@ -1150,6 +1207,24 @@ async function restoreCloudVersion(historyId){
   }
 }
 function pullFromCloud(){ return syncCloudState(); }
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='visible'&&sbSession)syncCloudState();
+});
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Escape')return;
+  if(document.getElementById('paymentModal').classList.contains('show'))closePaymentModal();
+  else if(document.getElementById('taskModal').classList.contains('show'))closeTaskModal();
+  else if(document.getElementById('dealModal').classList.contains('show'))closeDealModal();
+});
+document.querySelectorAll('.modal').forEach(modal=>{
+  modal.addEventListener('click',e=>{
+    if(e.target===modal){
+      if(modal.id==='paymentModal')closePaymentModal();
+      else if(modal.id==='taskModal')closeTaskModal();
+      else if(modal.id==='dealModal')closeDealModal();
+    }
+  });
+});
 function cloudSave(){
   cloudDirty=true;
   clearTimeout(cloudSaveTimer);

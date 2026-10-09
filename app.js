@@ -356,19 +356,13 @@ function renderDashboard(){
   const todayHandovers=handoverItemsForDate(todayKey());
   const upcoming=deals.filter(d=>d.stage!=='lost'&&getHandoverDate(d)&&getHandoverDate(d)>=todayKey()&&getHandoverDate(d)<=addDaysKey(todayKey(),7)).sort((a,b)=>(getHandoverDate(a)+a.handoverTime).localeCompare(getHandoverDate(b)+b.handoverTime));
   const openTasks=tasks.filter(t=>!t.done),overdue=openTasks.filter(t=>t.due&&t.due<todayKey()),todayTasks=openTasks.filter(t=>t.due===todayKey());
-  const readiness=upcoming.filter(d=>!handoverReady(d));
   document.getElementById('dashHandoversToday').textContent=todayHandovers.length;
   document.getElementById('dashHandoversSub').textContent=todayHandovers.length?(todayHandovers.filter(h=>handoverReady(h)).length+' ready · '+todayHandovers.filter(h=>!handoverReady(h)).length+' need prep'):'No handovers scheduled today';
   document.getElementById('dashNextHandovers').textContent=String(upcoming.length);
   document.getElementById('dashNextHandoversSub').textContent=upcoming.length?'Next 7 days':'Nothing scheduled';
-  document.getElementById('dashReadiness').textContent=readiness.length;
-  document.getElementById('dashReadinessSub').textContent=readiness.length?'Need checklist updates':'All scheduled handovers ready';
-  document.getElementById('dashWork').textContent=String(openTasks.length);
-  document.getElementById('dashWorkSub').textContent=overdue.length?overdue.length+' overdue · '+todayTasks.length+' today':'Open customer tasks';
   document.getElementById('dashTodayHandovers').innerHTML=todayHandovers.length?todayHandovers.map(renderHubHandover).join(''):'<div class="empty">No handovers scheduled today.</div>';
   document.getElementById('dashUpcomingHandovers').innerHTML=upcoming.length?upcoming.slice(0,8).map(renderHubHandover).join(''):'<div class="empty">No upcoming handovers in the next 7 days.</div>';
   document.getElementById('dashTodayWork').innerHTML=(overdue.concat(todayTasks)).slice(0,8).map(taskHtml).join('')||'<div class="empty">No urgent work.</div>';
-  document.getElementById('dashHubAlerts').innerHTML=readiness.length?readiness.slice(0,8).map(d=>'<div class="statline"><span>'+esc(d.customer||'Unnamed')+' · '+esc(d.vehicle||'Vehicle')+'</span><button class="btn sm" onclick="openDealModal(\''+esc(d.id)+'\')">Checklist</button></div>').join(''):'<div class="empty">No handover readiness alerts.</div>';
   document.getElementById('dashAttention').innerHTML=attention.length?attention.map(d=>`<div class="task"><div class="task-main"><div class="task-title">${esc(d.customer||'Unnamed')} · ${esc(d.vehicle||'Vehicle')}</div><div class="task-meta">${STAGE_LABELS[d.stage]||d.stage} · ${esc(dealRisk(d)[0])}</div></div><button class="btn sm" onclick="openDealModal('${d.id}')">Open</button></div>`).join(''):'<div class="empty">No commission or deal-risk flags.</div>';
   const target=monthTarget(key);
   document.getElementById('dashBreakdown').innerHTML=[

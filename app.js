@@ -42,6 +42,31 @@ let calendarEvents = JSON.parse(localStorage.getItem('ps_calendar') || '[]');
 let calendarView = 'week';
 let calendarCursor = new Date();
 let calendarEditId = '';
+const WORK_PATTERN = {
+  A:{Mon:null,Tue:'08:30-18:00',Wed:'08:30-18:00',Thu:'08:30-18:00',Fri:'08:30-18:00',Sat:'09:00-17:00',Sun:null},
+  B:{Mon:null,Tue:null,Wed:'08:30-18:00',Thu:'08:30-18:00',Fri:'08:30-18:00',Sat:'09:00-17:00',Sun:'10:00-16:00'}
+};
+const WORK_DAYS=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+function mondayKeyFromDate(d=new Date()){
+  const x=new Date(d);x.setHours(12,0,0,0);const day=x.getDay();x.setDate(x.getDate()-(day===0?6:day-1));
+  return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');
+}
+function weekTypeForDate(dateKey){
+  const anchor=parseDate(settings.scheduleAnchor||mondayKeyFromDate());
+  const target=parseDate(dateKey);
+  if(!anchor||!target||isNaN(anchor)||isNaN(target))return settings.scheduleType||'A';
+  const diff=Math.round((target-anchor)/86400000);
+  const weeks=Math.floor(diff/7);
+  return ((weeks%2)+2)%2===0?(settings.scheduleType||'A'):((settings.scheduleType||'A')==='A'?'B':'A');
+}
+function workInfoForDate(dateKey){
+  const type=weekTypeForDate(dateKey),d=parseDate(dateKey),day=d?d.getDay():1;
+  const key=WORK_DAYS[(day+6)%7];
+  const hours=WORK_PATTERN[type]?.[key]||null;
+  return {type,day:key,hours,off:!hours};
+}
+function currentWeekType(){return weekTypeForDate(mondayKeyFromDate());}
+
 
 function uid(prefix='id'){ return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 function esc(v){ return String(v ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
@@ -351,15 +376,13 @@ function renderDashboard(){
   const attention=deals.filter(d=>dealRisk(d).length).sort((a,b)=>(a.deliveryDate||'').localeCompare(b.deliveryDate||'')).slice(0,8);
   const todayHandovers=handoverItemsForDate(todayKey());
   const upcoming=deals.filter(d=>d.stage!=='lost'&&getHandoverDate(d)&&getHandoverDate(d)>=todayKey()&&getHandoverDate(d)<=addDaysKey(todayKey(),7)).sort((a,b)=>(getHandoverDate(a)+a.handoverTime).localeCompare(getHandoverDate(b)+b.handoverTime));
-  const openTasks=tasks.filter(t=>!t.done),overdue=openTasks.filter(t=>t.due&&t.due<todayKey()),todayTasks=openTasks.filter(t=>t.due===todayKey());
+  const todayWork=workInfoForDate(todayKey());
   document.getElementById('dashHandoversToday').textContent=todayHandovers.length;
-  document.getElementById('dashHandoversSub').textContent=todayHandovers.length?(todayHandovers.filter(h=>handoverReady(h)).length+' ready · '+todayHandovers.filter(h=>!handoverReady(h)).length+' need prep'):'No handovers scheduled today';
+  document.getElementById('dashHandoversSub').textContent=todayWork.off?'OFF today':('Working '+todayWork.hours);
   document.getElementById('dashNextHandovers').textContent=String(upcoming.length);
   document.getElementById('dashNextHandoversSub').textContent=upcoming.length?'Next 7 days':'Nothing scheduled';
   document.getElementById('dashTodayHandovers').innerHTML=todayHandovers.length?todayHandovers.map(renderHubHandover).join(''):'<div class="empty">No handovers scheduled today.</div>';
   document.getElementById('dashUpcomingHandovers').innerHTML=upcoming.length?upcoming.slice(0,8).map(renderHubHandover).join(''):'<div class="empty">No upcoming handovers in the next 7 days.</div>';
-  document.getElementById('dashTodayWork').innerHTML=(overdue.concat(todayTasks)).slice(0,8).map(taskHtml).join('')||'<div class="empty">No urgent work.</div>';
-  document.getElementById('dashAttention').innerHTML=attention.length?attention.map(d=>`<div class="task"><div class="task-main"><div class="task-title">${esc(d.customer||'Unnamed')} · ${esc(d.vehicle||'Vehicle')}</div><div class="task-meta">${STAGE_LABELS[d.stage]||d.stage} · ${esc(dealRisk(d)[0])}</div></div><button class="btn sm" onclick="openDealModal('${d.id}')">Open</button></div>`).join(''):'<div class="empty">No commission or deal-risk flags.</div>';
   const target=monthTarget(key);
   document.getElementById('dashBreakdown').innerHTML=[
     ['Orders logged',deals.filter(d=>monthKey(d.orderDate)===key).length],
@@ -774,7 +797,7 @@ function saveMonthTarget(){
   const newTarget=document.getElementById('setNewVehicleTarget').value===''?null:parseInt(document.getElementById('setNewVehicleTarget').value,10);
   if(combined!==null&&(!combined||combined<1)){alert('Enter a valid combined target.');return}
   if(newTarget!==null&&(!newTarget||newTarget<1)){alert('Enter a valid new-vehicle target.');return}
-  settings.monthTargets=settings.monthTargets||{};settings.newVehicleTargets=settings.newVehicleTargets||{};settings.naMonths=settings.naMonths||{};
+  settings.monthTargets=settings.monthTargets||{};settings.newVehicleTargets=settings.newVehicleTargets||{};settings.naMonths=settings.naMonths||{};settings.scheduleType=settings.scheduleType==='B'?'B':'A';settings.scheduleAnchor=settings.scheduleAnchor||mondayKeyFromDate();
   if(combined===null)delete settings.monthTargets[key];else settings.monthTargets[key]=combined;
   if(newTarget===null)delete settings.newVehicleTargets[key];else settings.newVehicleTargets[key]=newTarget;
   persist();refreshAll();cloudSave();
@@ -792,6 +815,13 @@ function saveSettings(){
   settings.otherDed=Number(document.getElementById('setOtherDed').value)||0;
   persist();refreshAll();cloudSave();
 }
+function saveWorkPattern(){
+  const anchor=document.getElementById('setScheduleAnchor')?.value||mondayKeyFromDate();
+  const type=document.getElementById('setScheduleType')?.value==='B'?'B':'A';
+  settings.scheduleAnchor=mondayKeyFromDate(new Date(anchor+'T12:00:00'));
+  settings.scheduleType=type;
+  persist();refreshAll();renderCalendar();cloudSave();
+}
 function loadSettingsUI(){
   document.getElementById('setBasic').value=settings.basic??20000;
   document.getElementById('setNetTarget').value=settings.netTarget??3000;
@@ -800,6 +830,9 @@ function loadSettingsUI(){
   document.getElementById('setTargetMonth').value=currentMonthKey();
   document.getElementById('setMonthTarget').value=monthTarget(currentMonthKey())||'';
   document.getElementById('setNewVehicleTarget').value=newVehicleTarget(currentMonthKey())||'';
+  const anchor=document.getElementById('setScheduleAnchor'),type=document.getElementById('setScheduleType');
+  if(anchor)anchor.value=settings.scheduleAnchor||mondayKeyFromDate();
+  if(type)type.value=settings.scheduleType||'A';
   setTheme(settings.theme||'dark');
 }
 

@@ -370,8 +370,6 @@ function renderDashboard(){
   const todayWork=workInfoForDate(todayKey());
   document.getElementById('dashTodayStatus').textContent=todayWork.off?'OFF':'WORKING';
   document.getElementById('dashTodaySub').textContent=todayWork.off?'Day off · Week '+todayWork.type:'Week '+todayWork.type+' · '+todayWork.hours;
-  document.getElementById('dashHandoversToday').textContent=todayHandovers.length;
-  document.getElementById('dashHandoversSub').textContent=todayHandovers.length?todayHandovers.filter(h=>handoverReady(h)).length+' ready · '+todayHandovers.filter(h=>!handoverReady(h)).length+' in progress':'No handovers today';
   document.getElementById('dashNextHandovers').textContent=String(upcoming.length);
   document.getElementById('dashNextHandoversSub').textContent=upcoming.length?'Next 7 days':'Nothing scheduled';
   document.getElementById('dashTodayHandovers').innerHTML=todayHandovers.length?todayHandovers.map(renderHubHandover).join(''):'<div class="empty">No handovers scheduled today.</div>';

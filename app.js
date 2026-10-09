@@ -32,7 +32,7 @@ const CLOUD_TABLE = 'deals';
 let deals = JSON.parse(localStorage.getItem('ps_deals') || '[]');
 let tasks = JSON.parse(localStorage.getItem('ps_tasks') || '[]');
 let settings = JSON.parse(localStorage.getItem('ps_settings') || JSON.stringify({
-  basic:20000, netTarget:3000, pension:0, otherDed:0, theme:'dark', monthTargets:{}, newVehicleTargets:{}, naMonths:{}
+  basic:20000, netTarget:3000, pension:0, otherDed:0, theme:'dark', monthTargets:{}, newVehicleTargets:{}, naMonths:{}, scheduleType:'A', scheduleAnchor:'2026-10-05'
 }));
 settings.monthTargets=settings.monthTargets||{};
 settings.newVehicleTargets=settings.newVehicleTargets||{};settings.naMonths=settings.naMonths||{};
@@ -889,7 +889,7 @@ function isPlainObject(x){
 function normalizeCloudData(payload){
   const base={
     basic:20000,netTarget:3000,pension:0,otherDed:0,theme:'dark',
-    monthTargets:{},newVehicleTargets:{},naMonths:{},scheduleType:'A',scheduleAnchor:mondayKeyFromDate()
+    monthTargets:{},newVehicleTargets:{},naMonths:{},scheduleType:'A',scheduleAnchor:'2026-10-05',scheduleType:'A',scheduleAnchor:mondayKeyFromDate()
   };
   return {
     deals:Array.isArray(payload?.deals)?payload.deals.map(migrateDeal):[],

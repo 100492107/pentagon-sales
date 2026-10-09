@@ -25,6 +25,9 @@ const ANNUAL_YEAR = nowForScheme.getMonth() >= 6 ? nowForScheme.getFullYear() : 
 const ANNUAL_START = ANNUAL_YEAR+'-07-01';
 const ANNUAL_END   = (ANNUAL_YEAR+1)+'-06-30';
 const ORDER_COMMISSION_START = '2026-07-01';
+const SUPABASE_URL = 'https://zvyioxhwdyocaanzcgqf.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_0JYQARzlCx8BYd1cxtEigg_qkfSQqaN';
+const CLOUD_TABLE = 'my_sales_hq_state';
 
 let deals = JSON.parse(localStorage.getItem('ps_deals') || '[]');
 let tasks = JSON.parse(localStorage.getItem('ps_tasks') || '[]');
@@ -52,10 +55,11 @@ function currentMonthKey(){ return monthKey(todayKey()); }
 function previousMonthKey(){ const d=new Date(); d.setMonth(d.getMonth()-1); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
 function annualMonths(){ const out=[]; const d=new Date(ANNUAL_YEAR,6,1,12); for(let i=0;i<12;i++){ out.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')); d.setMonth(d.getMonth()+1); } return out; }
 
-function persist(){
+function persist(markLocal=true){
   localStorage.setItem('ps_deals', JSON.stringify(deals));
   localStorage.setItem('ps_tasks', JSON.stringify(tasks));
   localStorage.setItem('ps_settings', JSON.stringify(settings));
+  if(markLocal) localStorage.setItem('ps_local_updated_at', new Date().toISOString());
 }
 function normalizeStage(d){
   if(d.stage) return d.stage;
@@ -95,7 +99,7 @@ function setTheme(t){
   const b=document.getElementById('themeBtn'); if(b)b.textContent=t==='dark'?'Light':'Dark';
   localStorage.setItem('ps_settings',JSON.stringify(settings));
 }
-function toggleTheme(){ setTheme(document.body.getAttribute('data-theme')==='dark'?'light':'dark'); }
+function toggleTheme(){ setTheme(document.body.getAttribute('data-theme')==='dark'?'light':'dark'); persist(); cloudSave(); }
 
 function annualEligibleDeals(){
   // A delivery is a delivered unit for performance purposes. Do not remove a
@@ -484,7 +488,7 @@ function saveDeal(e){
   };
   if(!old && d.leadDate)d.journal.push({id:uid('note'),date:d.leadDate,text:'Deal created.'});
   const i=deals.findIndex(x=>x.id===id);if(i>=0)deals[i]=d;else deals.push(d);
-  persist();openDealId=id;refreshAll();openDealModal(id);
+  persist();openDealId=id;refreshAll();openDealModal(id);cloudSave();
 }
 function addDiaryEntry(){
   if(!openDealId)return;
@@ -652,39 +656,189 @@ function exportCSV(){
 }
 function importData(e){
   const file=e.target.files?.[0];if(!file)return;const r=new FileReader();r.onload=ev=>{
-    try{const x=JSON.parse(ev.target.result);deals=(x.deals||[]).map(migrateDeal);tasks=Array.isArray(x.tasks)?x.tasks:tasks;settings={...settings,...(x.settings||{})};settings.monthTargets=settings.monthTargets||{};settings.newVehicleTargets=settings.newVehicleTargets||{};settings.naMonths=settings.naMonths||{};persist();loadSettingsUI();refreshAll();alert('Imported '+deals.length+' deals.')}catch(err){alert('Invalid JSON backup.')}
+    try{const x=JSON.parse(ev.target.result);deals=(x.deals||[]).map(migrateDeal);tasks=Array.isArray(x.tasks)?x.tasks:tasks;settings={...settings,...(x.settings||{})};settings.monthTargets=settings.monthTargets||{};settings.newVehicleTargets=settings.newVehicleTargets||{};settings.naMonths=settings.naMonths||{};persist();loadSettingsUI();refreshAll();cloudSave();alert('Imported '+deals.length+' deals.')}catch(err){alert('Invalid JSON backup.')}
   };r.readAsText(file);
 }
 function clearAll(){deals=[];tasks=[];localStorage.removeItem('ps_deals');localStorage.removeItem('ps_tasks');persist();refreshAll();cloudSave()}
 
-/* Existing Supabase/local sync retained. */
-function getSbCreds(){return{url:localStorage.getItem('ps_sb_url')||'',key:localStorage.getItem('ps_sb_key')||''};}
-function setSyncStatus(state,text){const el=document.getElementById('syncStatus');if(!el)return;el.className='sync '+state;el.textContent=text;}
-function initSupabase(){
-  const {url,key}=getSbCreds();if(!url||!key){setSyncStatus('offline','Local only');return;}
-  document.getElementById('sbUrl').value=url;document.getElementById('sbKey').value=key;
-  try{sb=supabase.createClient(url,key);setSyncStatus('online','Cloud connected');document.getElementById('btnPull').disabled=false;document.getElementById('btnPush').disabled=false;pullFromCloud(true);}
-  catch(e){sb=null;setSyncStatus('error','Cloud error');}
+/* Automatic cloud sync: Supabase is the source of truth; localStorage is the offline cache. */
+let sb = null;
+let sbSession = null;
+let cloudSaveTimer = null;
+let cloudSyncBusy = false;
+
+function setSyncStatus(state,text){
+  const el=document.getElementById('syncStatus');
+  if(!el)return;
+  el.className='sync '+state;
+  el.textContent=text;
 }
-async function connectSupabase(){
-  const url=document.getElementById('sbUrl').value.trim(),key=document.getElementById('sbKey').value.trim();if(!url||!key){document.getElementById('cloudMsg').textContent='Enter both values.';return;}
-  localStorage.setItem('ps_sb_url',url);localStorage.setItem('ps_sb_key',key);document.getElementById('cloudMsg').textContent='Connecting...';
-  try{sb=supabase.createClient(url,key);const {error}=await sb.from('deals').select('id').limit(1);if(error)throw error;setSyncStatus('online','Cloud connected');document.getElementById('btnPull').disabled=false;document.getElementById('btnPush').disabled=false;await pullFromCloud();}catch(e){sb=null;setSyncStatus('error','Cloud error');document.getElementById('cloudMsg').textContent='Failed: '+(e.message||e);}
+function getLocalUpdatedAt(){ return localStorage.getItem('ps_local_updated_at')||''; }
+function hasLocalData(){
+  return deals.length>0 || tasks.length>0;
 }
-function disconnectSupabase(){localStorage.removeItem('ps_sb_url');localStorage.removeItem('ps_sb_key');sb=null;setSyncStatus('offline','Local only');document.getElementById('btnPull').disabled=true;document.getElementById('btnPush').disabled=true;document.getElementById('cloudMsg').textContent='Disconnected.';}
-async function pushToCloud(){
-  if(!sb)return;document.getElementById('cloudMsg').textContent='Pushing...';
-  try{const {error}=await sb.from('deals').upsert({id:'state',data:{deals,tasks,settings,updated:new Date().toISOString()},updated_at:new Date().toISOString()});if(error)throw error;document.getElementById('cloudMsg').textContent='Pushed '+deals.length+' deals / '+tasks.length+' tasks.';setSyncStatus('online','Cloud synced');}
-  catch(e){document.getElementById('cloudMsg').textContent='Push failed: '+(e.message||e);setSyncStatus('error','Sync error');}
+function setCloudUi(){
+  const email=document.getElementById('cloudEmail');
+  const account=document.getElementById('cloudAccount');
+  const loginBtn=document.getElementById('btnCloudLogin');
+  const pullBtn=document.getElementById('btnPull');
+  const pushBtn=document.getElementById('btnPush');
+  const signoutBtn=document.getElementById('btnCloudSignout');
+  const authenticated=!!sbSession;
+  if(email && authenticated) email.value=sbSession.user.email||'';
+  if(account)account.textContent=authenticated ? ('Signed in as '+(sbSession.user.email||'your account')) : 'Not signed in';
+  if(loginBtn)loginBtn.style.display=authenticated?'none':'inline-flex';
+  if(signoutBtn)signoutBtn.style.display=authenticated?'inline-flex':'none';
+  if(pullBtn)pullBtn.disabled=!authenticated;
+  if(pushBtn)pushBtn.disabled=!authenticated;
 }
-async function pullFromCloud(silent){
-  if(!sb)return;if(!silent)document.getElementById('cloudMsg').textContent='Pulling...';
-  try{const {data,error}=await sb.from('deals').select('data').eq('id','state').single();if(error&&error.code!=='PGRST116')throw error;
-    if(data?.data){deals=(data.data.deals||[]).map(migrateDeal);tasks=Array.isArray(data.data.tasks)?data.data.tasks:tasks;settings={...settings,...(data.data.settings||{})};settings.monthTargets=settings.monthTargets||{};settings.newVehicleTargets=settings.newVehicleTargets||{};settings.naMonths=settings.naMonths||{};persist();loadSettingsUI();refreshAll();if(!silent)document.getElementById('cloudMsg').textContent='Pulled '+deals.length+' deals / '+tasks.length+' tasks.';setSyncStatus('online','Cloud synced');}
-    else if(!silent)document.getElementById('cloudMsg').textContent='No cloud state yet — push to create it.';
-  }catch(e){if(!silent)document.getElementById('cloudMsg').textContent='Pull failed: '+(e.message||e);setSyncStatus('error','Sync error');}
+function normalizeCloudData(payload){
+  return {
+    deals:Array.isArray(payload?.deals)?payload.deals.map(migrateDeal):[],
+    tasks:Array.isArray(payload?.tasks)?payload.tasks:[],
+    settings:{...settings,...(payload?.settings||{})}
+  };
 }
-async function cloudSave(){if(sb)await pushToCloud();}
+function mergeFirstRun(localData,cloudData){
+  const localDeals=(localData.deals||[]), cloudDeals=(cloudData.deals||[]);
+  const localTasks=(localData.tasks||[]), cloudTasks=(cloudData.tasks||[]);
+  const dealMap=new Map(cloudDeals.map(d=>[d.id,d]));
+  localDeals.forEach(d=>{ if(!dealMap.has(d.id)) dealMap.set(d.id,d); });
+  const taskMap=new Map(cloudTasks.map(t=>[t.id,t]));
+  localTasks.forEach(t=>{ if(!taskMap.has(t.id)) taskMap.set(t.id,t); });
+  return {
+    deals:[...dealMap.values()].map(migrateDeal),
+    tasks:[...taskMap.values()],
+    settings:{...localData.settings,...cloudData.settings}
+  };
+}
+async function initSupabase(){
+  try{
+    sb=supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{
+      auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
+    });
+    const {data,error}=await sb.auth.getSession();
+    if(error)throw error;
+    sbSession=data.session||null;
+    setCloudUi();
+    if(sbSession) await syncCloudState();
+    else setSyncStatus('offline','Sign in to sync');
+    sb.auth.onAuthStateChange((event,session)=>{
+      sbSession=session||null;
+      setCloudUi();
+      if(event==='SIGNED_IN' && sbSession){
+        setTimeout(()=>syncCloudState(),0);
+      }else if(event==='SIGNED_OUT'){
+        setSyncStatus('offline','Sign in to sync');
+      }
+    });
+  }catch(e){
+    sb=null;sbSession=null;setCloudUi();setSyncStatus('error','Cloud unavailable');
+    const msg=document.getElementById('cloudMsg');if(msg)msg.textContent='Cloud setup error: '+(e.message||e);
+  }
+}
+async function signInCloud(){
+  if(!sb)return;
+  const email=(document.getElementById('cloudEmail').value||'').trim();
+  if(!email){document.getElementById('cloudMsg').textContent='Enter your email address.';return;}
+  document.getElementById('cloudMsg').textContent='Sending secure sign-in link...';
+  try{
+    const {error}=await sb.auth.signInWithOtp({
+      email,
+      options:{emailRedirectTo:window.location.origin}
+    });
+    if(error)throw error;
+    document.getElementById('cloudMsg').textContent='Sign-in link sent. Open it on this device to activate cloud sync.';
+  }catch(e){
+    document.getElementById('cloudMsg').textContent='Sign-in failed: '+(e.message||e);
+  }
+}
+async function signOutSupabase(){
+  if(!sb)return;
+  await sb.auth.signOut();
+  setSyncStatus('offline','Sign in to sync');
+  const msg=document.getElementById('cloudMsg');if(msg)msg.textContent='Signed out. Your local cache is still here.';
+}
+async async function pushToCloud(immediate=false){
+  if(!sb||!sbSession||cloudSyncBusy)return;
+  if(!immediate){
+    clearTimeout(cloudSaveTimer);
+    cloudSaveTimer=setTimeout(()=>pushToCloud(true),350);
+    return;
+  }
+  cloudSyncBusy=true;
+  setSyncStatus(navigator.onLine?'syncing':'offline','Saving to cloud…');
+  try{
+    const stamp=new Date().toISOString();
+    const {data,error}=await sb.from(CLOUD_TABLE).upsert({
+      id:sbSession.user.id,
+      data:{deals,tasks,settings},
+      updated_at:stamp
+    }).select('updated_at').single();
+    if(error)throw error;
+    const cloudStamp=data?.updated_at||stamp;
+    localStorage.setItem('ps_local_updated_at',cloudStamp);
+    localStorage.setItem('ps_last_cloud_sync',cloudStamp);
+    setSyncStatus('online','Cloud synced');
+    const msg=document.getElementById('cloudMsg');if(msg)msg.textContent='Automatically synced '+deals.length+' deals / '+tasks.length+' tasks.';
+  }catch(e){
+    setSyncStatus('error','Sync error');
+    const msg=document.getElementById('cloudMsg');if(msg)msg.textContent='Cloud save failed: '+(e.message||e);
+  }finally{
+    cloudSyncBusy=false;
+  }
+}
+async function syncCloudState(){
+  if(!sb||!sbSession||cloudSyncBusy)return;
+  cloudSyncBusy=true;
+  setSyncStatus('syncing','Syncing cloud…');
+  try{
+    const {data:row,error}=await sb.from(CLOUD_TABLE).select('data,updated_at').eq('id',sbSession.user.id).maybeSingle();
+    if(error)throw error;
+    if(!row){
+      cloudSyncBusy=false;
+      await pushToCloud(true);
+      return;
+    }
+    const localStamp=getLocalUpdatedAt();
+    const localTs=localStamp?Date.parse(localStamp):0;
+    const cloudTs=row.updated_at?Date.parse(row.updated_at):0;
+    const cloudData=normalizeCloudData(row.data||{});
+    if(!localStamp && hasLocalData()){
+      const merged=mergeFirstRun({deals,tasks,settings},cloudData);
+      deals=merged.deals;tasks=merged.tasks;settings=merged.settings;
+      persist(false);loadSettingsUI();refreshAll();
+      cloudSyncBusy=false;
+      await pushToCloud(true);
+      return;
+    }
+    if(localTs>cloudTs){
+      cloudSyncBusy=false;
+      await pushToCloud(true);
+      return;
+    }
+    deals=cloudData.deals;tasks=cloudData.tasks;settings=cloudData.settings;
+    settings.monthTargets=settings.monthTargets||{};
+    settings.newVehicleTargets=settings.newVehicleTargets||{};
+    settings.naMonths=settings.naMonths||{};
+    persist(false);loadSettingsUI();refreshAll();
+    localStorage.setItem('ps_local_updated_at',row.updated_at||new Date().toISOString());
+    localStorage.setItem('ps_last_cloud_sync',row.updated_at||new Date().toISOString());
+    setSyncStatus('online','Cloud synced');
+    const msg=document.getElementById('cloudMsg');if(msg)msg.textContent='Loaded '+deals.length+' deals / '+tasks.length+' tasks from cloud.';
+  }catch(e){
+    setSyncStatus('error','Sync error');
+    const msg=document.getElementById('cloudMsg');if(msg)msg.textContent='Cloud sync failed: '+(e.message||e);
+  }finally{
+    cloudSyncBusy=false;
+  }
+}
+function pullFromCloud(){ return syncCloudState(); }
+function cloudSave(){ if(sb&&sbSession){ clearTimeout(cloudSaveTimer); cloudSaveTimer=setTimeout(()=>pushToCloud(true),250); } }
+function connectSupabase(){ return signInCloud(); }
+function disconnectSupabase(){ return signOutSupabase(); }
+window.addEventListener('online',()=>{ if(sbSession){ setSyncStatus('online','Back online · syncing…'); cloudSave(); } });
+window.addEventListener('offline',()=>{ if(sbSession)setSyncStatus('offline','Offline · local cache active'); });
 
 function refreshAll(){
   renderSummary();renderDashboard();renderWork();renderDeals();renderCommission();renderPerformance();loadSettingsUI();

@@ -405,7 +405,6 @@ function calendarOpenEvent(item){
 }
 function renderCalendar(){
   const wrap=document.getElementById('calendarCanvas');if(!wrap)return;
-  document.getElementById('calendarViewLabel').textContent=calendarView==='day'?'Day':calendarView==='week'?'Week':'Month';
   document.querySelectorAll('[data-cal-view]').forEach(b=>b.classList.toggle('active',b.dataset.calView===calendarView));
   if(calendarView==='day'){
     const dateKey=calendarCursor.getFullYear()+'-'+String(calendarCursor.getMonth()+1).padStart(2,'0')+'-'+String(calendarCursor.getDate()).padStart(2,'0');

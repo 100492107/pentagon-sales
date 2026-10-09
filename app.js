@@ -667,7 +667,9 @@ function currentCloudData(){
   return {deals:deals.map(x=>cloneData(x)),tasks:tasks.map(x=>cloneData(x)),settings:cloneData(settings)};
 }
 function cloneData(x){
-  try{return JSON.parse(JSON.stringify(x||{}));}catch(e){return {};}
+  if(x===undefined)return undefined;
+  if(x===null)return null;
+  try{return JSON.parse(JSON.stringify(x));}catch(e){return x;}
 }
 function deepEqual(a,b){
   return JSON.stringify(a??null)===JSON.stringify(b??null);

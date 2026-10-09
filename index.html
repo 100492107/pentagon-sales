@@ -373,6 +373,49 @@ input[type="checkbox"]{accent-color:var(--red)}
   .tablewrap{margin-left:-4px;margin-right:-4px;padding-left:4px;padding-right:4px}
 }
 
+/* Home Hub + Calendar */
+.hub-handover{border:1px solid var(--border);background:var(--card2);border-radius:11px;padding:11px;margin-bottom:8px}
+.hub-handover:last-child{margin-bottom:0}
+.hub-handover-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.hub-handover-head strong{display:block;font-size:12px}.hub-handover-head span{display:block;color:var(--muted);font-size:10px;margin-top:2px}
+.hub-date{font-size:10px;color:var(--muted);white-space:nowrap}
+.hub-check-row{display:flex;justify-content:space-between;gap:8px;margin-top:6px;font-size:10px;color:var(--muted)}
+.hub-actions{display:flex;justify-content:flex-end;margin-top:7px}
+.hub-alert{border-left:3px solid var(--yellow)}
+.handover-step{display:grid;grid-template-columns:1fr 150px;gap:10px;align-items:center;padding:9px;border:1px solid var(--border);background:var(--card2);border-radius:9px;margin-bottom:7px}
+.handover-step strong{display:block;font-size:11px}.handover-step span{display:block;color:var(--muted);font-size:9px;margin-top:2px}
+.handover-step select{min-height:34px}
+.calendar-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.calendar-nav,.calendar-views{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+.calendar-range{font-weight:800;font-size:13px}
+.calendar-view-btn.active{background:var(--red);color:#fff;border-color:var(--red)}
+.calendar-week{display:grid;grid-template-columns:repeat(7,minmax(150px,1fr));min-width:1050px;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.calendar-col{min-height:320px;border-right:1px solid var(--border);background:var(--card)}
+.calendar-col:last-child{border-right:0}.calendar-col.today-col{box-shadow:inset 0 3px 0 var(--red)}
+.calendar-col-head{display:flex;justify-content:space-between;gap:8px;padding:10px;border-bottom:1px solid var(--border);background:var(--card2);font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.calendar-col-head span{color:var(--text)}
+.calendar-items{padding:8px}.calendar-none{font-size:11px;color:var(--muted);padding:7px}
+.calendar-item,.handover-item{width:100%;display:flex;flex-direction:column;align-items:flex-start;text-align:left;border:1px solid var(--border);background:var(--card2);color:var(--text);border-radius:8px;padding:7px;margin-bottom:6px}
+.handover-item{border-color:rgba(22,131,255,.35);background:rgba(22,131,255,.08)}
+.calendar-item span,.handover-item span{font-size:10px;font-weight:800;line-height:1.35}.calendar-item small,.handover-item small{font-size:8px;color:var(--muted);margin-top:3px}
+.calendar-day{display:grid;gap:7px;max-width:800px}.calendar-day .calendar-item,.calendar-day .handover-item{max-width:none}
+.calendar-month{border:1px solid var(--border);border-radius:10px;overflow:hidden;min-width:900px}
+.calendar-month-head{display:grid;grid-template-columns:repeat(7,1fr);background:var(--card2);border-bottom:1px solid var(--border)}
+.calendar-month-head div{padding:9px;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;border-right:1px solid var(--border)}
+.calendar-month-grid{display:grid;grid-template-columns:repeat(7,1fr)}
+.calendar-cell{min-height:120px;padding:7px;border-right:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--card)}
+.calendar-cell.outside{background:rgba(127,127,127,.04);color:var(--muted)}
+.calendar-cell.today-cell{box-shadow:inset 0 3px 0 var(--red)}
+.calendar-cell-date{font-size:10px;font-weight:800;margin-bottom:6px}
+.calendar-cell .calendar-item,.calendar-cell .handover-item{padding:5px;margin-bottom:4px}
+.calendar-cell .calendar-item span,.calendar-cell .handover-item span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+@media(max-width:650px){
+  .handover-step{grid-template-columns:1fr}.calendar-toolbar{align-items:stretch}.calendar-nav,.calendar-views{width:100%}.calendar-range{width:100%;order:-1}
+  .calendar-week,.calendar-month{min-width:0}.calendar-week{grid-template-columns:repeat(7,130px);overflow:auto}.calendar-month{overflow:auto}.calendar-month-head,.calendar-month-grid{min-width:900px}
+  .calendar-col{min-height:240px}.calendar-cell{min-height:104px}
+  .hub-handover-head{flex-direction:column;gap:4px}.hub-date{white-space:normal}
+}
+
 </style>
 </head>
 <body data-theme="dark">
@@ -417,11 +460,20 @@ input[type="checkbox"]{accent-color:var(--red)}
   </div>
 
   <section class="section active" id="sec-dashboard">
+    <div class="topline"><div><div class="eyebrow">Command centre</div><h2>Home Hub</h2></div><div class="small">Everything that needs your eyes first.</div></div>
     <div class="grid g4">
-      <div class="card"><h2>Adjusted commission earned</h2><div class="stat green" id="dashEarned">—</div><div class="small" id="dashEarnedSub">Current month after recorded scheme adjustments</div><div class="progress"><div class="fill" id="dashCommProgress" style="width:0%"></div></div></div>
-      <div class="card"><h2>Expected next payslip</h2><div class="stat blue" id="dashExpected">—</div><div class="small" id="dashExpectedSub">—</div></div>
-      <div class="card"><h2>Actual paid this month</h2><div class="stat" id="dashPaid">£0</div><div class="small">Only payments you record</div></div>
-      <div class="card"><h2>Work due</h2><div class="stat red" id="dashWork">0</div><div class="small" id="dashWorkSub">Open tasks</div></div>
+      <div class="card"><h2>Handovers today</h2><div class="stat blue" id="dashHandoversToday">0</div><div class="small" id="dashHandoversSub">No handovers scheduled today</div></div>
+      <div class="card"><h2>Next 7 days</h2><div class="stat" id="dashNextHandovers">0</div><div class="small" id="dashNextHandoversSub">Nothing scheduled</div></div>
+      <div class="card"><h2>Readiness issues</h2><div class="stat yellow" id="dashReadiness">0</div><div class="small" id="dashReadinessSub">All scheduled handovers ready</div></div>
+      <div class="card"><h2>Open work</h2><div class="stat red" id="dashWork">0</div><div class="small" id="dashWorkSub">Open customer tasks</div></div>
+    </div>
+    <div class="grid g2" style="margin-top:12px">
+      <div class="card"><h2>Today's handovers</h2><div id="dashTodayHandovers"></div></div>
+      <div class="card"><h2>Today's priorities</h2><div id="dashTodayWork"></div></div>
+    </div>
+    <div class="grid g2" style="margin-top:12px">
+      <div class="card"><h2>Next handovers</h2><div id="dashUpcomingHandovers"></div></div>
+      <div class="card"><h2>Handover readiness alerts</h2><div id="dashHubAlerts"></div></div>
     </div>
     <div class="grid g2" style="margin-top:12px">
       <div class="card"><h2>Deals needing attention</h2><div id="dashAttention"></div></div>
@@ -438,6 +490,17 @@ input[type="checkbox"]{accent-color:var(--red)}
       <div class="card work-col"><h3>Upcoming</h3><div id="workUpcoming"></div></div>
     </div>
     <div class="card" style="margin-top:12px"><h2>All open work</h2><div id="workAll"></div></div>
+  </section>
+
+  <section class="section" id="sec-calendar">
+    <div class="topline"><div><div class="eyebrow">Schedule</div><h2>Calendar</h2></div><button class="btn primary" onclick="openCalendarModal()">+ Calendar item</button></div>
+    <div class="card">
+      <div class="calendar-toolbar">
+        <div class="calendar-nav"><button class="btn sm" onclick="calendarPrev()">←</button><button class="btn sm" onclick="calendarToday()">Today</button><button class="btn sm" onclick="calendarNext()">→</button><span class="calendar-range" id="calendarRangeLabel">—</span></div>
+        <div class="calendar-views"><button class="btn sm calendar-view-btn" data-cal-view="day" onclick="setCalendarView('day')">Day</button><button class="btn sm calendar-view-btn active" data-cal-view="week" onclick="setCalendarView('week')">Week</button><button class="btn sm calendar-view-btn" data-cal-view="month" onclick="setCalendarView('month')">Month</button></div>
+      </div>
+      <div class="tablewrap" style="margin-top:10px"><div id="calendarCanvas"></div></div>
+    </div>
   </section>
 
   <section class="section" id="sec-deals">
@@ -596,6 +659,28 @@ input[type="checkbox"]{accent-color:var(--red)}
     <div class="formgrid three"><div><label>Due</label><input class="input" type="date" id="tDue" required></div><div><label>Type</label><select id="tType"><option>Call</option><option>SMS</option><option>Email</option><option>Appointment</option><option>Finance</option><option>Delivery</option><option>Admin</option><option>Other</option></select></div><div><label>Priority</label><select id="tPriority"><option value="normal">Normal</option><option value="high">High</option></select></div></div>
     <div><label>Notes</label><textarea id="tNotes" rows="3"></textarea></div>
     <div class="toolbar modal-footer" style="justify-content:flex-end;margin-top:8px"><button type="button" class="btn danger" id="taskDeleteBtn" onclick="deleteTask(document.getElementById('taskModal').dataset.editId)" style="display:none">Delete task</button><button type="button" class="btn" onclick="closeTaskModal()">Cancel</button><button type="submit" class="btn primary" id="taskSubmit">Add task</button></div>
+   </form>
+  </div>
+ </div>
+</div>
+
+<div class="modal" id="calendarModal">
+ <div class="modalbox" style="max-width:620px">
+  <div class="modalhead"><h3 id="calendarModalTitle">New calendar item</h3><button type="button" class="close" aria-label="Close calendar item" title="Close" onclick="closeCalendarModal()">×</button></div>
+  <div class="modalbody">
+   <form onsubmit="saveCalendarEvent(event)">
+    <div><label>Title</label><input class="input" id="cTitle" required placeholder="e.g. Customer handover / manager meeting"></div>
+    <div class="formgrid three" style="margin-top:10px">
+      <div><label>Date</label><input class="input" type="date" id="cDate" required></div>
+      <div><label>Start</label><input class="input" type="time" id="cStart"></div>
+      <div><label>End</label><input class="input" type="time" id="cEnd"></div>
+    </div>
+    <div class="formgrid" style="margin-top:10px">
+      <div><label>Type</label><select id="cType"><option value="appointment">Appointment</option><option value="test-drive">Test drive</option><option value="meeting">Meeting</option><option value="followup">Follow-up</option><option value="other">Other</option></select></div>
+      <div><label>Linked deal</label><select id="cDeal"><option value="">No linked deal</option></select></div>
+    </div>
+    <div style="margin-top:10px"><label>Notes</label><textarea id="cNotes" rows="3"></textarea></div>
+    <div class="toolbar modal-footer" style="justify-content:flex-end;margin-top:10px"><button type="button" class="btn danger" id="calendarDeleteBtn" onclick="deleteCalendarEvent(calendarEditId)" style="display:none">Delete</button><button type="button" class="btn" onclick="closeCalendarModal()">Cancel</button><button type="submit" class="btn primary">Save</button></div>
    </form>
   </div>
  </div>

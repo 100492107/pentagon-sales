@@ -27,7 +27,7 @@ const ANNUAL_END   = (ANNUAL_YEAR+1)+'-06-30';
 const ORDER_COMMISSION_START = '2026-07-01';
 const SUPABASE_URL = 'https://fwrvpjxxcdmeuukjwhjp.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_VRXsdVEqBBCQ1YUHYrHf8Q_szqZWGsx';
-const CLOUD_TABLE = 'my_sales_hq_state';
+const CLOUD_TABLE = 'deals';
 
 let deals = JSON.parse(localStorage.getItem('ps_deals') || '[]');
 let tasks = JSON.parse(localStorage.getItem('ps_tasks') || '[]');
@@ -38,6 +38,10 @@ settings.monthTargets=settings.monthTargets||{};
 settings.newVehicleTargets=settings.newVehicleTargets||{};settings.naMonths=settings.naMonths||{};
 let paymentContext = null;
 let openDealId = null;
+let calendarEvents = JSON.parse(localStorage.getItem('ps_calendar') || '[]');
+let calendarView = 'week';
+let calendarCursor = new Date();
+let calendarEditId = '';
 
 function uid(prefix='id'){ return prefix + '_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 function esc(v){ return String(v ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])); }
@@ -75,6 +79,12 @@ function migrateDeal(d){
   x.orderDate=x.orderDate || ((x.status==='order'||x.status==='both') ? x.date : '');
   x.deliveryDate=x.deliveryDate || ((x.status==='delivery'||x.status==='both') ? x.date : '');
   x.expectedDeliveryDate=x.expectedDeliveryDate||'';
+  x.handoverDate=x.handoverDate||'';
+  x.handoverTime=x.handoverTime||'';
+  x.handover=x.handover&&typeof x.handover==='object'?x.handover:{
+    prep:'not-set',service:'not-set',mot:'not-set',cosmetic:'not-set',valet:'not-set',documents:'not-set'
+  };
+  x.handover={prep:x.handover.prep||'not-set',service:x.handover.service||'not-set',mot:x.handover.mot||'not-set',cosmetic:x.handover.cosmetic||'not-set',valet:x.handover.valet||'not-set',documents:x.handover.documents||'not-set'};
   x.financePayoutDate=x.financePayoutDate||'';
   x.csi=(x.csi!==undefined && x.csi!==null && x.csi!=='') ? Number(x.csi) : null;
   x.px=x.px||'';
@@ -296,6 +306,173 @@ function renderSummary(){
   document.getElementById('dashWork').textContent=String(openTasks.length);
   document.getElementById('dashWorkSub').textContent=overdue?overdue+' overdue':'Open customer tasks';
 }
+const HANDOVER_STEPS=[
+  ['prep','Prep'],['service','Service'],['mot','MOT'],['cosmetic','Cosmetic'],['valet','Valet'],['documents','Docs / keys']
+];
+const HANDOVER_STATUS_LABELS={ 'not-set':'Not set', booked:'Booked', progress:'In progress', done:'Done', na:'N/A' };
+const CALENDAR_TYPE_LABELS={appointment:'Appointment','test-drive':'Test drive',meeting:'Meeting',followup:'Follow-up',other:'Other'};
+
+function addDaysKey(key,delta){
+  const d=parseDate(key)||new Date();
+  d.setDate(d.getDate()+delta);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function startOfWeekKey(key){
+  const d=parseDate(key)||new Date(),day=d.getDay(),diff=day===0?-6:1-day;
+  return addDaysKey(key,diff);
+}
+function daysInMonth(year,monthIndex){ return new Date(year,monthIndex+1,0).getDate(); }
+function getHandoverDate(d){ return d?.handoverDate || d?.expectedDeliveryDate || d?.deliveryDate || ''; }
+function handoverProgress(d){
+  const h=d?.handover||{};
+  const total=HANDOVER_STEPS.length;
+  const done=HANDOVER_STEPS.filter(([k])=>h[k]==='done'||h[k]==='na').length;
+  return {done,total,pct:Math.round(done/total*100)};
+}
+function handoverReady(d){
+  return HANDOVER_STEPS.every(([k])=>d?.handover?.[k]==='done'||d?.handover?.[k]==='na');
+}
+function handoverItemsForDate(dateKey){
+  return deals.filter(d=>d.stage!=='lost'&&getHandoverDate(d)===dateKey).sort((a,b)=>(a.handoverTime||'99:99').localeCompare(b.handoverTime||'99:99'));
+}
+function calendarItemsForDate(dateKey){
+  const items=calendarEvents.filter(e=>e.date===dateKey).map(e=>({kind:'event',...e}));
+  handoverItemsForDate(dateKey).forEach(d=>items.push({kind:'handover',id:'handover_'+d.id,dealId:d.id,date:dateKey,time:d.handoverTime||'',title:'Handover · '+(d.customer||'Unnamed'),notes:d.vehicle||''}));
+  return items.sort((a,b)=>(a.time||'99:99').localeCompare(b.time||'99:99'));
+}
+function calendarEventLabel(e){ return e.kind==='handover'?'Handover':(CALENDAR_TYPE_LABELS[e.type]||'Calendar'); }
+function renderHubHandover(d){
+  const p=handoverProgress(d),date=getHandoverDate(d),ready=handoverReady(d);
+  const outstanding=HANDOVER_STEPS.filter(([k])=>!['done','na'].includes(d.handover?.[k])).map(([,label])=>label);
+  return '<div class="hub-handover"><div class="hub-handover-head"><div><strong>'+esc(d.customer||'Unnamed')+'</strong><span>'+esc(d.vehicle||'Vehicle')+'</span></div><div class="hub-date">'+(d.handoverTime?esc(d.handoverTime)+' · ':'')+esc(dateLabel(date))+'</div></div>'+
+    '<div class="progress"><div class="fill '+(ready?'green':'blue')+'" style="width:'+p.pct+'%"></div></div>'+
+    '<div class="hub-check-row"><span>'+p.done+'/'+p.total+' ready</span><span class="'+(ready?'good-text':'warn-text')+'">'+(ready?'READY':'Needs '+esc(outstanding.slice(0,2).join(', ')+(outstanding.length>2?'…':'')))+'</span></div>'+
+    '<div class="hub-actions"><button class="btn sm" onclick="openDealModal(\''+esc(d.id)+'\')">Open deal</button></div></div>';
+}
+function renderDashboard(){
+  const key=currentMonthKey(),s=monthStats(key);
+  const attention=deals.filter(d=>dealRisk(d).length).sort((a,b)=>(a.deliveryDate||'').localeCompare(b.deliveryDate||'')).slice(0,8);
+  const todayHandovers=handoverItemsForDate(todayKey());
+  const upcoming=deals.filter(d=>d.stage!=='lost'&&getHandoverDate(d)&&getHandoverDate(d)>=todayKey()&&getHandoverDate(d)<=addDaysKey(todayKey(),7)).sort((a,b)=>(getHandoverDate(a)+a.handoverTime).localeCompare(getHandoverDate(b)+b.handoverTime));
+  const openTasks=tasks.filter(t=>!t.done),overdue=openTasks.filter(t=>t.due&&t.due<todayKey()),todayTasks=openTasks.filter(t=>t.due===todayKey());
+  const readiness=upcoming.filter(d=>!handoverReady(d));
+  document.getElementById('dashHandoversToday').textContent=todayHandovers.length;
+  document.getElementById('dashHandoversSub').textContent=todayHandovers.length?(todayHandovers.filter(h=>handoverReady(h)).length+' ready · '+todayHandovers.filter(h=>!handoverReady(h)).length+' need prep'):'No handovers scheduled today';
+  document.getElementById('dashNextHandovers').textContent=String(upcoming.length);
+  document.getElementById('dashNextHandoversSub').textContent=upcoming.length?'Next 7 days':'Nothing scheduled';
+  document.getElementById('dashReadiness').textContent=readiness.length;
+  document.getElementById('dashReadinessSub').textContent=readiness.length?'Need checklist updates':'All scheduled handovers ready';
+  document.getElementById('dashWork').textContent=String(openTasks.length);
+  document.getElementById('dashWorkSub').textContent=overdue.length?overdue.length+' overdue · '+todayTasks.length+' today':'Open customer tasks';
+  document.getElementById('dashTodayHandovers').innerHTML=todayHandovers.length?todayHandovers.map(renderHubHandover).join(''):'<div class="empty">No handovers scheduled today.</div>';
+  document.getElementById('dashUpcomingHandovers').innerHTML=upcoming.length?upcoming.slice(0,8).map(renderHubHandover).join(''):'<div class="empty">No upcoming handovers in the next 7 days.</div>';
+  document.getElementById('dashTodayWork').innerHTML=(overdue.concat(todayTasks)).slice(0,8).map(taskHtml).join('')||'<div class="empty">No urgent work.</div>';
+  document.getElementById('dashHubAlerts').innerHTML=readiness.length?readiness.slice(0,8).map(d=>'<div class="statline"><span>'+esc(d.customer||'Unnamed')+' · '+esc(d.vehicle||'Vehicle')+'</span><button class="btn sm" onclick="openDealModal(\''+esc(d.id)+'\')">Checklist</button></div>').join(''):'<div class="empty">No handover readiness alerts.</div>';
+  document.getElementById('dashAttention').innerHTML=attention.length?attention.map(d=>`<div class="task"><div class="task-main"><div class="task-title">${esc(d.customer||'Unnamed')} · ${esc(d.vehicle||'Vehicle')}</div><div class="task-meta">${STAGE_LABELS[d.stage]||d.stage} · ${esc(dealRisk(d)[0])}</div></div><button class="btn sm" onclick="openDealModal('${d.id}')">Open</button></div>`).join(''):'<div class="empty">No commission or deal-risk flags.</div>';
+  const target=monthTarget(key);
+  document.getElementById('dashBreakdown').innerHTML=[
+    ['Orders logged',deals.filter(d=>monthKey(d.orderDate)===key).length],
+    ['Delivered',s.units],['New Retail',s.newUnits],['Motability',s.motab],['Used',s.used],['Commission adjustments',money(s.adjustments)]
+  ].map(x=>`<div class="statline"><span>${esc(x[0])}</span><strong>${esc(x[1])}</strong></div>`).join('')+(target===null?'':`<div class="statline"><span>Monthly unit target</span><strong>${target}</strong></div>`);
+  const nextKey=payMonthForCurrent(), prev=monthStats(currentMonthKey());
+  document.getElementById('dashFlow').innerHTML=[
+    `<div class="statline"><span>${monthLabel(key)} earned</span><strong>${money(prev.earned)}</strong></div>`,
+    `<div class="statline"><span>${monthLabel(nextKey)} expected from this month's earned commission</span><strong>${money(monthStats(nextKey).expected)}</strong></div>`,
+    `<div class="statline"><span>${monthLabel(nextKey)} actually recorded paid</span><strong>${money(monthStats(nextKey).paid)}</strong></div>`
+  ].join('');
+}
+
+function renderDealHandoverChecklist(){
+  const wrap=document.getElementById('dealHandoverChecklist');if(!wrap)return;
+  if(!openDealId){wrap.innerHTML='<div class="note">Save the deal first, then manage its handover checklist.</div>';return;}
+  const d=deals.find(x=>x.id===openDealId);if(!d)return;
+  wrap.innerHTML=HANDOVER_STEPS.map(([key,label])=>{
+    const value=d.handover?.[key]||'not-set';
+    return '<div class="handover-step"><div><strong>'+esc(label)+'</strong><span>'+((value==='done'||value==='na')?'Ready for handover':'Action required')+'</span></div><select onchange="updateHandoverStep(\''+esc(d.id)+'\',\''+key+'\',this.value)">'+Object.entries(HANDOVER_STATUS_LABELS).map(([v,l])=>'<option value="'+v+'" '+(value===v?'selected':'')+'>'+esc(l)+'</option>').join('')+'</select></div>';
+  }).join('');
+  const p=handoverProgress(d);
+  document.getElementById('handoverProgressText').textContent=p.done+'/'+p.total+' complete';
+  document.getElementById('handoverProgressBar').style.width=p.pct+'%';
+}
+function updateHandoverStep(dealId,key,value){
+  const d=deals.find(x=>x.id===dealId);if(!d)return;
+  d.handover=d.handover||{};d.handover[key]=value;
+  persist();renderDealHandoverChecklist();renderDashboard();cloudSave();
+}
+
+function calendarOpenEvent(item){
+  if(item.kind==='handover')openDealModal(item.dealId);else openCalendarModal(item.id);
+}
+function renderCalendar(){
+  const wrap=document.getElementById('calendarCanvas');if(!wrap)return;
+  document.getElementById('calendarViewLabel').textContent=calendarView==='day'?'Day':calendarView==='week'?'Week':'Month';
+  document.querySelectorAll('[data-cal-view]').forEach(b=>b.classList.toggle('active',b.dataset.calView===calendarView));
+  if(calendarView==='day'){
+    const dateKey=calendarCursor.getFullYear()+'-'+String(calendarCursor.getMonth()+1).padStart(2,'0')+'-'+String(calendarCursor.getDate()).padStart(2,'0');
+    document.getElementById('calendarRangeLabel').textContent=dateLabel(dateKey);
+    const items=calendarItemsForDate(dateKey);
+    wrap.innerHTML='<div class="calendar-day">'+(items.length?items.map(calendarItemHtml).join(''):'<div class="empty">Nothing scheduled.</div>')+'</div>';
+    return;
+  }
+  if(calendarView==='week'){
+    const start=startOfWeekKey(calendarCursor.getFullYear()+'-'+String(calendarCursor.getMonth()+1).padStart(2,'0')+'-'+String(calendarCursor.getDate()).padStart(2,'0'));
+    const end=addDaysKey(start,6);
+    document.getElementById('calendarRangeLabel').textContent=dateLabel(start)+' → '+dateLabel(end);
+    wrap.innerHTML='<div class="calendar-week">'+Array.from({length:7},(_,i)=>{const k=addDaysKey(start,i),items=calendarItemsForDate(k);return '<div class="calendar-col '+(k===todayKey()?'today-col':'')+'"><div class="calendar-col-head"><strong>'+parseDate(k).toLocaleDateString('en-GB',{weekday:'short'})+'</strong><span>'+parseDate(k).getDate()+'</span></div><div class="calendar-items">'+(items.length?items.map(calendarItemHtml).join(''):'<div class="calendar-none">—</div>')+'</div></div>';}).join('')+'</div>';
+    return;
+  }
+  const y=calendarCursor.getFullYear(),m=calendarCursor.getMonth(),first=new Date(y,m,1,12),firstKey=y+'-'+String(m+1).padStart(2,'0')+'-01',start=startOfWeekKey(firstKey),total=Math.ceil((first.getDay()===0?6:first.getDay()-1+daysInMonth(y,m))/7)*7;
+  document.getElementById('calendarRangeLabel').textContent=new Date(y,m,1).toLocaleString('en-GB',{month:'long',year:'numeric'});
+  wrap.innerHTML='<div class="calendar-month"><div class="calendar-month-head">'+['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(x=>'<div>'+x+'</div>').join('')+'</div><div class="calendar-month-grid">'+Array.from({length:total},(_,i)=>{const k=addDaysKey(start,i),d=parseDate(k),inMonth=d.getMonth()===m,items=calendarItemsForDate(k);return '<div class="calendar-cell '+(inMonth?'':'outside')+' '+(k===todayKey()?'today-cell':'')+'"><div class="calendar-cell-date">'+d.getDate()+'</div><div>'+(items.slice(0,4).map(calendarItemHtml).join('')||'')+'</div></div>';}).join('')+'</div></div>';
+}
+function calendarItemHtml(item){
+  const cls=item.kind==='handover'?'handover-item':'calendar-item';
+  return '<button type="button" class="'+cls+'" onclick="calendarOpenEvent(this.dataset)" data-kind="'+esc(item.kind||'event')+'" data-id="'+esc(item.id)+'" data-deal-id="'+esc(item.dealId||'')+'"><span>'+(item.time?esc(item.time)+' ':'')+esc(item.title)+'</span><small>'+esc(calendarEventLabel(item))+'</small></button>';
+}
+function calendarPrev(){
+  if(calendarView==='day')calendarCursor.setDate(calendarCursor.getDate()-1);
+  else if(calendarView==='week')calendarCursor.setDate(calendarCursor.getDate()-7);
+  else calendarCursor.setMonth(calendarCursor.getMonth()-1);
+  renderCalendar();
+}
+function calendarNext(){
+  if(calendarView==='day')calendarCursor.setDate(calendarCursor.getDate()+1);
+  else if(calendarView==='week')calendarCursor.setDate(calendarCursor.getDate()+7);
+  else calendarCursor.setMonth(calendarCursor.getMonth()+1);
+  renderCalendar();
+}
+function calendarToday(){calendarCursor=new Date();renderCalendar();}
+function setCalendarView(v){calendarView=v;renderCalendar();}
+function openCalendarModal(id=''){
+  const e=id?calendarEvents.find(x=>x.id===id):null;if(id&&!e)return;
+  calendarEditId=id||'';
+  const modal=document.getElementById('calendarModal');modal.classList.add('show');
+  document.getElementById('calendarModalTitle').textContent=e?'Edit calendar item':'New calendar item';
+  document.getElementById('calendarDeleteBtn').style.display=e?'inline-flex':'none';
+  document.getElementById('cTitle').value=e?.title||'';
+  document.getElementById('cDate').value=e?.date||todayKey();
+  document.getElementById('cStart').value=e?.time||'';
+  document.getElementById('cEnd').value=e?.endTime||'';
+  document.getElementById('cType').value=e?.type||'appointment';
+  document.getElementById('cDeal').innerHTML='<option value="">No linked deal</option>'+deals.map(d=>'<option value="'+esc(d.id)+'">'+esc(d.customer||'Unnamed')+' · '+esc(d.vehicle||'Vehicle')+'</option>').join('');
+  document.getElementById('cDeal').value=e?.dealId||'';
+  document.getElementById('cNotes').value=e?.notes||'';
+}
+function closeCalendarModal(){document.getElementById('calendarModal').classList.remove('show');calendarEditId='';}
+function saveCalendarEvent(e){
+  e.preventDefault();
+  const id=calendarEditId||uid('cal'),old=calendarEvents.find(x=>x.id===id);
+  const obj={id,title:document.getElementById('cTitle').value.trim(),date:document.getElementById('cDate').value,time:document.getElementById('cStart').value,endTime:document.getElementById('cEnd').value,type:document.getElementById('cType').value,dealId:document.getElementById('cDeal').value,notes:document.getElementById('cNotes').value.trim()};
+  if(!obj.title||!obj.date){alert('Enter a title and date.');return;}
+  if(old){const i=calendarEvents.findIndex(x=>x.id===id);calendarEvents[i]=obj;}else calendarEvents.push(obj);
+  persist();closeCalendarModal();refreshAll();cloudSave();
+}
+function deleteCalendarEvent(id){
+  const e=calendarEvents.find(x=>x.id===id);if(!e)return;
+  if(!confirm('Delete this calendar item?'))return;
+  calendarEvents=calendarEvents.filter(x=>x.id!==id);persist();closeCalendarModal();refreshAll();cloudSave();
+}
+
 function renderDashboard(){
   const key=currentMonthKey(),s=monthStats(key);
   const attention=deals.filter(d=>dealRisk(d).length).sort((a,b)=>(a.deliveryDate||'').localeCompare(b.deliveryDate||'')).slice(0,8);
@@ -474,12 +651,12 @@ function openDealModal(id=''){
   document.getElementById('adjDate').value=todayKey();
   if(!id){
     ['fCustomer','fPhone','fEmail','fVehicle','fStock','fPx','fNextAction','fDiary'].forEach(x=>document.getElementById(x).value='');
-    document.getElementById('fLeadDate').value=todayKey();document.getElementById('fOrderDate').value='';document.getElementById('fExpectedDelivery').value='';document.getElementById('fDeliveryDate').value='';document.getElementById('fFinancePayout').value='';document.getElementById('fCSI').value='';document.getElementById('fStage').value='lead';document.getElementById('fType').value='new-retail';buildFiChecks([]);document.getElementById('dealEvents').innerHTML='<div class="note">Save the deal first, then commission events and payment tracking appear here.</div>';document.getElementById('dealDiary').innerHTML='<div class="empty">Save the deal and start the diary.</div>';document.getElementById('dealTasks').innerHTML='<div class="empty">Save the deal before adding linked work.</div>';document.getElementById('dealAdjustments').innerHTML='<div class="note">Save the deal first.</div>';return;
+    document.getElementById('fLeadDate').value=todayKey();document.getElementById('fOrderDate').value='';document.getElementById('fExpectedDelivery').value='';document.getElementById('fHandoverDate').value='';document.getElementById('fHandoverTime').value='';document.getElementById('fDeliveryDate').value='';document.getElementById('fFinancePayout').value='';document.getElementById('fCSI').value='';document.getElementById('fStage').value='lead';document.getElementById('fType').value='new-retail';buildFiChecks([]);renderDealHandoverChecklist();document.getElementById('dealEvents').innerHTML='<div class="note">Save the deal first, then commission events and payment tracking appear here.</div>';document.getElementById('dealDiary').innerHTML='<div class="empty">Save the deal and start the diary.</div>';document.getElementById('dealTasks').innerHTML='<div class="empty">Save the deal before adding linked work.</div>';document.getElementById('dealAdjustments').innerHTML='<div class="note">Save the deal first.</div>';return;
   }
   const d=deals.find(x=>x.id===id);if(!d)return;
   document.getElementById('fCustomer').value=d.customer;document.getElementById('fPhone').value=d.phone||'';document.getElementById('fEmail').value=d.email||'';document.getElementById('fVehicle').value=d.vehicle||'';document.getElementById('fStock').value=d.stock||'';
-  document.getElementById('fType').value=d.type;document.getElementById('fStage').value=d.stage;document.getElementById('fLeadDate').value=d.leadDate||'';document.getElementById('fOrderDate').value=d.orderDate||'';document.getElementById('fExpectedDelivery').value=d.expectedDeliveryDate||'';document.getElementById('fDeliveryDate').value=d.deliveryDate||'';document.getElementById('fFinancePayout').value=d.financePayoutDate||'';document.getElementById('fCSI').value=d.csi??'';document.getElementById('fPx').value=d.px||'';document.getElementById('fNextAction').value=d.nextAction||'';
-  buildFiChecks(d.fi||[]);renderDealEventsInModal();renderDealDiary();renderDealTasks();renderDealAdjustments();
+  document.getElementById('fType').value=d.type;document.getElementById('fStage').value=d.stage;document.getElementById('fLeadDate').value=d.leadDate||'';document.getElementById('fOrderDate').value=d.orderDate||'';document.getElementById('fExpectedDelivery').value=d.expectedDeliveryDate||'';document.getElementById('fHandoverDate').value=d.handoverDate||'';document.getElementById('fHandoverTime').value=d.handoverTime||'';document.getElementById('fDeliveryDate').value=d.deliveryDate||'';document.getElementById('fFinancePayout').value=d.financePayoutDate||'';document.getElementById('fCSI').value=d.csi??'';document.getElementById('fPx').value=d.px||'';document.getElementById('fNextAction').value=d.nextAction||'';
+  buildFiChecks(d.fi||[]);renderDealEventsInModal();renderDealDiary();renderDealTasks();renderDealAdjustments();renderDealHandoverChecklist();
 }
 function closeDealModal(){document.getElementById('dealModal').classList.remove('show');openDealId=null}
 function saveDeal(e){
@@ -664,7 +841,7 @@ function downloadBlob(blob,filename){
   setTimeout(()=>URL.revokeObjectURL(url),1000);
 }
 function exportJSON(){
-  const payload={version:9,deals,tasks,settings,exported:new Date().toISOString()};
+  const payload={version:10,deals,tasks,calendarEvents,settings,exported:new Date().toISOString()};
   downloadBlob(new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}),'my-sales-hq-'+todayKey()+'.json');
 }
 function exportCSV(){
@@ -696,7 +873,7 @@ function importData(e){
 }
 function clearAll(){
   if(!confirm('Delete every deal and work item from My Sales HQ? This also syncs the deletion to your cloud account.'))return;
-  deals=[];tasks=[];localStorage.removeItem('ps_deals');localStorage.removeItem('ps_tasks');persist();refreshAll();cloudSave();
+  deals=[];tasks=[];calendarEvents=[];localStorage.removeItem('ps_deals');localStorage.removeItem('ps_tasks');localStorage.removeItem('ps_calendar');persist();refreshAll();cloudSave();
 }
 
 /* Automatic cloud sync: Supabase is the source of truth; localStorage is the offline cache. */
@@ -710,7 +887,7 @@ let localGeneration = Number(localStorage.getItem('ps_local_revision')||0);
 const CLOUD_HISTORY_TABLE = 'my_sales_hq_state_history';
 
 function currentCloudData(){
-  return {deals:deals.map(x=>cloneData(x)),tasks:tasks.map(x=>cloneData(x)),settings:cloneData(settings)};
+  return {deals:deals.map(x=>cloneData(x)),tasks:tasks.map(x=>cloneData(x)),calendarEvents:calendarEvents.map(x=>cloneData(x)),settings:cloneData(settings)};
 }
 function cloneData(x){
   if(x===undefined)return undefined;
@@ -731,12 +908,13 @@ function normalizeCloudData(payload){
   return {
     deals:Array.isArray(payload?.deals)?payload.deals.map(migrateDeal):[],
     tasks:Array.isArray(payload?.tasks)?payload.tasks:[],
+    calendarEvents:Array.isArray(payload?.calendarEvents)?payload.calendarEvents:[],
     settings:{...base,...(payload?.settings||{})}
   };
 }
 function applyCloudData(payload){
   const x=normalizeCloudData(payload);
-  deals=x.deals;tasks=x.tasks;settings=x.settings;
+  deals=x.deals;tasks=x.tasks;calendarEvents=x.calendarEvents||[];settings=x.settings;
   settings.monthTargets=settings.monthTargets||{};
   settings.newVehicleTargets=settings.newVehicleTargets||{};
   settings.naMonths=settings.naMonths||{};
@@ -824,6 +1002,7 @@ function mergeCloudData(base,local,remote){
   const merged={
     deals:mergeCollection(base?.deals||[],local?.deals||[],remote?.deals||[],conflicts,'deal'),
     tasks:mergeCollection(base?.tasks||[],local?.tasks||[],remote?.tasks||[],conflicts,'task'),
+    calendarEvents:mergeCollection(base?.calendarEvents||[],local?.calendarEvents||[],remote?.calendarEvents||[],conflicts,'calendar'),
     settings:mergeValue(base?.settings||{},local?.settings||{},remote?.settings||{},conflicts,'settings')
   };
   return {data:merged,conflicts};
@@ -831,13 +1010,17 @@ function mergeCloudData(base,local,remote){
 function mergeFirstRun(localData,cloudData){
   const localDeals=localData.deals||[],cloudDeals=cloudData.deals||[];
   const localTasks=localData.tasks||[],cloudTasks=cloudData.tasks||[];
+  const localCalendar=localData.calendarEvents||[],cloudCalendar=cloudData.calendarEvents||[];
   const dealMap=new Map(cloudDeals.map(d=>[d.id,d]));
   localDeals.forEach(d=>{if(!dealMap.has(d.id))dealMap.set(d.id,d);});
   const taskMap=new Map(cloudTasks.map(t=>[t.id,t]));
   localTasks.forEach(t=>{if(!taskMap.has(t.id))taskMap.set(t.id,t);});
+  const calendarMap=new Map(cloudCalendar.map(x=>[x.id,x]));
+  localCalendar.forEach(x=>{if(!calendarMap.has(x.id))calendarMap.set(x.id,x);});
   return {
     deals:[...dealMap.values()].map(migrateDeal),
     tasks:[...taskMap.values()],
+    calendarEvents:[...calendarMap.values()],
     settings:{...localData.settings,...cloudData.settings}
   };
 }
@@ -848,11 +1031,12 @@ function setSyncStatus(state,text){
   el.textContent=text;
 }
 function hasLocalData(){
-  return deals.length>0 || tasks.length>0;
+  return deals.length>0 || tasks.length>0 || calendarEvents.length>0;
 }
 function persist(markLocal=true){
   localStorage.setItem('ps_deals',JSON.stringify(deals));
   localStorage.setItem('ps_tasks',JSON.stringify(tasks));
+  localStorage.setItem('ps_calendar',JSON.stringify(calendarEvents));
   localStorage.setItem('ps_settings',JSON.stringify(settings));
   if(markLocal){
     localGeneration++;
@@ -1236,14 +1420,15 @@ window.addEventListener('online',()=>{ if(sbSession){ setSyncStatus('online','Ba
 window.addEventListener('offline',()=>{ if(sbSession)setSyncStatus('offline','Offline · local cache active'); });
 
 function refreshAll(){
-  renderSummary();renderDashboard();renderWork();renderDeals();renderCommission();renderPerformance();loadSettingsUI();
+  renderSummary();renderDashboard();renderCalendar();renderWork();renderDeals();renderCommission();renderPerformance();loadSettingsUI();
   if(typeof renderFiConversion==='function')renderFiConversion();
 }
 document.querySelectorAll('.tab').forEach(tab=>tab.addEventListener('click',()=>{
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.section').forEach(x=>x.classList.remove('active'));
   tab.classList.add('active');document.getElementById('sec-'+tab.dataset.tab).classList.add('active');
   refreshAll();
-}));
+}
+));
 document.getElementById('fType').addEventListener('change',()=>buildFiChecks([...document.querySelectorAll('input[name="fi"]:checked')].map(x=>x.value)));
 
 function init(){

@@ -1,5 +1,5 @@
-const CACHE='my-sales-hq-v14';
-const APP_SHELL=['/','/index.html','/app.js?v=20261009-9','/playbook.js?v=20261008-4','/manifest.json','/assets/joedoes-icon.jpg'];
+const CACHE='my-sales-hq-v15';
+const APP_SHELL=['/','/index.html','/app.js?v=20261010-1','/playbook.js?v=20261008-4','/manifest.json','/assets/joedoes-icon.jpg'];
 
 self.addEventListener('install',event=>{
   event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(APP_SHELL)).then(()=>self.skipWaiting()));

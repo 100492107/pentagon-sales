@@ -483,10 +483,18 @@ header{
     </div>
     <div class="card" style="margin-top:12px"><h2>Data</h2><div class="toolbar"><button class="btn" onclick="exportJSON()">Export JSON</button><button class="btn" onclick="exportCSV()">Export CSV</button><button class="btn" onclick="document.getElementById('importFile').click()">Import JSON</button><button class="btn danger" onclick="if(confirm('Delete all local deals and tasks?')) clearAll()">Delete all</button></div></div>
     <div class="card" style="margin-top:12px"><h2>Cloud sync</h2>
-      <div class="formgrid"><div><label>Supabase Project URL</label><input class="input" id="sbUrl" placeholder="https://xxxxx.supabase.co"></div><div><label>Supabase anon key</label><input class="input" id="sbKey" placeholder="eyJ..."></div></div>
-      <div class="toolbar" style="margin-top:10px"><button class="btn primary" onclick="connectSupabase()">Connect</button><button class="btn" id="btnPull" onclick="pullFromCloud()" disabled>Pull</button><button class="btn" id="btnPush" onclick="pushToCloud()" disabled>Push</button><button class="btn" onclick="disconnectSupabase()">Disconnect</button></div>
-      <div class="note" id="cloudMsg" style="margin-top:8px"></div>
-    </div>
+      <div class="note" style="margin-bottom:10px">Your sales diary is stored in your private My Sales HQ cloud account. This device keeps a local cache so you can still work offline.</div>
+      <div class="formgrid">
+        <div><label>Cloud account email</label><input class="input" type="email" id="cloudEmail" placeholder="you@example.com"></div>
+        <div><label>Account status</label><div class="input" id="cloudAccount">Not signed in</div></div>
+      </div>
+      <div class="toolbar" style="margin-top:10px">
+        <button class="btn primary" id="btnCloudLogin" onclick="signInCloud()">Send sign-in link</button>
+        <button class="btn" id="btnPull" onclick="pullFromCloud()" disabled>Sync now</button>
+        <button class="btn" id="btnPush" onclick="pushToCloud(true)" disabled>Save now</button>
+        <button class="btn" id="btnCloudSignout" onclick="signOutSupabase()" style="display:none">Sign out</button>
+      </div>
+      <div class="note" id="cloudMsg" style="margin-top:8px">Sign in once on each device. After that, changes save to the cloud automatically.</div>    </div>
   </section>
 </div>
 

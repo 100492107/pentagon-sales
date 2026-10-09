@@ -639,6 +639,11 @@ input[type="checkbox"]{accent-color:var(--red)}
       <div><h2>Diary</h2><div id="dealDiary" class="diary"></div><div style="margin-top:8px"><textarea id="fDiary" rows="3" placeholder="Add a dated note to your personal deal diary..."></textarea><button type="button" class="btn" style="margin-top:6px" onclick="addDiaryEntry()">Add diary note</button></div></div>
     </div>
     <div class="card" style="margin-top:12px;box-shadow:none;background:var(--card2)">
+      <div class="topline" style="margin-bottom:8px"><div><h2 style="margin-bottom:0">Handover readiness</h2><div class="small" id="handoverProgressText">0/6 complete</div></div></div>
+      <div class="progress" style="margin-bottom:9px"><div class="fill green" id="handoverProgressBar" style="width:0%"></div></div>
+      <div id="dealHandoverChecklist"></div>
+    </div>
+    <div class="card" style="margin-top:12px;box-shadow:none;background:var(--card2)">
       <h2>Manual commission adjustments</h2>
       <div id="dealAdjustments"></div>
       <div class="formgrid three" style="margin-top:8px">

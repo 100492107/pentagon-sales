@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="My Sales HQ">
+<meta name="description" content="Private sales diary, work tracker and commission dashboard.">
 <link rel="manifest" href="/manifest.json">
 <link rel="icon" href="/assets/joedoes-icon.jpg" type="image/jpeg">
 <link rel="apple-touch-icon" href="/assets/joedoes-icon.jpg">
@@ -349,13 +350,36 @@ header{
   }
   .wrap{padding:10px 10px 24px!important}
 }
+
+/* Final UX hardening */
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:none;transform:none}
+.sync{white-space:nowrap}
+.sync.syncing{color:#9ac6ff;background:rgba(96,165,250,.12)}
+.task-main{min-width:0}
+.task-actions{display:flex;gap:5px;flex:0 0 auto;align-items:center}
+.task-actions .btn{white-space:nowrap}
+.close{min-width:42px;min-height:42px;border-radius:8px}
+.close:hover{background:var(--card2);color:var(--text)}
+.modal-footer{position:sticky;bottom:0;z-index:3;background:var(--card);padding-top:12px;border-top:1px solid var(--border);margin-top:2px}
+.modal-footer .btn{min-width:110px}
+.tablewrap{overscroll-behavior-x:contain;touch-action:pan-x}
+input[type="checkbox"]{accent-color:var(--red)}
+@media(max-width:650px){
+  .modal-footer{margin-left:-12px;margin-right:-12px;margin-bottom:-12px;padding:12px}
+  .modal-footer .btn{flex:1;min-width:0}
+  .task-actions{width:100%;justify-content:flex-end;flex-wrap:wrap}
+  .task-actions .btn{min-width:0}
+  input[type="checkbox"]{width:20px;height:20px;flex:0 0 20px}
+  .tablewrap{margin-left:-4px;margin-right:-4px;padding-left:4px;padding-right:4px}
+}
+
 </style>
 </head>
 <body data-theme="dark">
 <header>
   <div class="brand"><img class="brandmark" src="/assets/joedoes-icon.jpg" alt="JoeDoesCars logo"><div><h1>My Sales HQ</h1><p>JOEDOESCARS · PERSONAL CAR SALES</p></div></div>
   <div class="header-actions">
-    <span class="sync" id="syncStatus">Local only</span>
+    <span class="sync offline" id="syncStatus" aria-live="polite">Sign in to sync</span>
     <button class="btn sm" id="themeBtn" onclick="toggleTheme()">Light</button>
     <a class="btn sm" href="https://www.instagram.com/joedoescars" target="_blank" rel="noopener noreferrer">Work Instagram ↗</a>
     <button class="btn sm" onclick="exportJSON()">Backup</button>
@@ -481,7 +505,7 @@ header{
         <div class="commission-rates" style="margin-top:12px"><h3>Commission rates</h3><div class="tablewrap"><table class="table"><thead><tr><th>Type</th><th>Order / invoice</th><th>Delivery</th><th>F&amp;I</th></tr></thead><tbody><tr><td>New Retail</td><td>£40</td><td>£40</td><td>Finance £10 · Paint £35 · Refresh £35 · Warranty £35 · Motability Care Pack £25</td></tr><tr><td>New Motability</td><td>£30</td><td>£30</td><td>Finance £10 · Paint £35 · Refresh £35 · Warranty £35 · Motability Care Pack £25</td></tr><tr><td>Used</td><td>—</td><td>£60</td><td>Finance £60 · Paint £30 · Refresh £30 · Warranty £30 · Assurance £10</td></tr></tbody></table></div></div>
       </div>
     </div>
-    <div class="card" style="margin-top:12px"><h2>Data</h2><div class="toolbar"><button class="btn" onclick="exportJSON()">Export JSON</button><button class="btn" onclick="exportCSV()">Export CSV</button><button class="btn" onclick="document.getElementById('importFile').click()">Import JSON</button><button class="btn danger" onclick="if(confirm('Delete all local deals and tasks?')) clearAll()">Delete all</button></div></div>
+    <div class="card" style="margin-top:12px"><h2>Data</h2><div class="toolbar"><button class="btn" onclick="exportJSON()">Export JSON</button><button class="btn" onclick="exportCSV()">Export CSV</button><button class="btn" onclick="document.getElementById('importFile').click()">Import JSON</button><button class="btn danger" onclick="clearAll()">Delete all</button></div></div>
     <div class="card" style="margin-top:12px"><h2>Cloud sync</h2>
       <div class="note" style="margin-bottom:10px">Your sales diary is stored in your private My Sales HQ cloud account. This device keeps a local cache so you can still work offline.</div>
       <div class="formgrid">
@@ -494,7 +518,7 @@ header{
         <button class="btn" id="btnPush" onclick="pushToCloud(true)" disabled>Save now</button>
         <button class="btn" id="btnCloudSignout" onclick="signOutSupabase()" style="display:none">Sign out</button>
       </div>
-      <div class="note" id="cloudMsg" style="margin-top:8px">Sign in once on each device. After that, changes save to the cloud automatically.</div>
+      <div class="note" id="cloudMsg" aria-live="polite" style="margin-top:8px">Sign in once on each device. After that, changes save to the cloud automatically.</div>
     </div>
     <div class="card" id="cloudConflictCard" style="display:none;margin-top:12px">
       <h2>Cloud conflict</h2>
@@ -513,7 +537,7 @@ header{
 
 <div class="modal" id="dealModal">
  <div class="modalbox">
-  <div class="modalhead"><div><div class="eyebrow">Deal record</div><h3 id="dealModalTitle">Add deal</h3></div><button class="close" onclick="closeDealModal()">×</button></div>
+  <div class="modalhead"><div><div class="eyebrow">Deal record</div><h3 id="dealModalTitle">Add deal</h3></div><button type="button" class="close" aria-label="Close deal" title="Close" onclick="closeDealModal()">×</button></div>
   <div class="modalbody">
    <form id="dealForm" onsubmit="saveDeal(event)">
     <input type="hidden" id="editId">
@@ -557,33 +581,33 @@ header{
     <div class="divider"></div>
     <div class="card" style="box-shadow:none;background:var(--card2)"><h2>Work for this customer</h2><div id="dealTasks"></div><div class="formgrid three" style="margin-top:7px"><div><label>Task</label><input class="input" id="quickTaskTitle" placeholder="e.g. Call to confirm delivery"></div><div><label>Due</label><input class="input" type="date" id="quickTaskDue"></div><div><label>Type</label><select id="quickTaskType"><option>Call</option><option>SMS</option><option>Email</option><option>Appointment</option><option>Finance</option><option>Delivery</option><option>Admin</option><option>Other</option></select></div></div><button type="button" class="btn" style="margin-top:7px" onclick="addQuickTask()">Add task</button></div>
     <div class="divider"></div>
-    <div class="toolbar" style="justify-content:flex-end"><button type="button" class="btn" onclick="closeDealModal()">Cancel</button><button type="submit" class="btn primary" id="dealSubmit">Save deal</button></div>
+    <div class="toolbar modal-footer" style="justify-content:flex-end"><button type="button" class="btn danger" id="deleteDealBtn" onclick="deleteDeal(document.getElementById('editId').value)" style="display:none">Delete deal</button><button type="button" class="btn" onclick="closeDealModal()">Cancel</button><button type="submit" class="btn primary" id="dealSubmit">Save deal</button></div>
    </form>
   </div>
  </div>
 </div>
 
 <div class="modal" id="taskModal">
- <div class="modalbox" style="max-width:560px"><div class="modalhead"><h3>New work item</h3><button class="close" onclick="closeTaskModal()">×</button></div>
+ <div class="modalbox" style="max-width:560px"><div class="modalhead"><h3 id="taskModalTitle">New work item</h3><button type="button" class="close" aria-label="Close work item" title="Close" onclick="closeTaskModal()">×</button></div>
   <div class="modalbody">
    <form onsubmit="saveTask(event)">
     <div><label>Deal</label><select id="tDeal"><option value="">No linked deal</option></select></div>
     <div><label>Task</label><input class="input" id="tTitle" required placeholder="What do you need to do?"></div>
     <div class="formgrid three"><div><label>Due</label><input class="input" type="date" id="tDue" required></div><div><label>Type</label><select id="tType"><option>Call</option><option>SMS</option><option>Email</option><option>Appointment</option><option>Finance</option><option>Delivery</option><option>Admin</option><option>Other</option></select></div><div><label>Priority</label><select id="tPriority"><option value="normal">Normal</option><option value="high">High</option></select></div></div>
     <div><label>Notes</label><textarea id="tNotes" rows="3"></textarea></div>
-    <div class="toolbar" style="justify-content:flex-end;margin-top:8px"><button type="button" class="btn" onclick="closeTaskModal()">Cancel</button><button class="btn primary">Add task</button></div>
+    <div class="toolbar modal-footer" style="justify-content:flex-end;margin-top:8px"><button type="button" class="btn danger" id="taskDeleteBtn" onclick="deleteTask(document.getElementById('taskModal').dataset.editId)" style="display:none">Delete task</button><button type="button" class="btn" onclick="closeTaskModal()">Cancel</button><button type="submit" class="btn primary" id="taskSubmit">Add task</button></div>
    </form>
   </div>
  </div>
 </div>
 
 <div class="modal" id="paymentModal">
- <div class="modalbox" style="max-width:520px"><div class="modalhead"><h3>Record commission payment</h3><button class="close" onclick="closePaymentModal()">×</button></div>
+ <div class="modalbox" style="max-width:520px"><div class="modalhead"><h3>Record commission payment</h3><button type="button" class="close" aria-label="Close payment" title="Close" onclick="closePaymentModal()">×</button></div>
   <div class="modalbody">
    <div class="note" id="paymentContext" style="margin-bottom:10px"></div>
    <div class="formgrid"><div><label>Paid amount</label><input class="input" type="number" step="0.01" id="payAmount"></div><div><label>Paid date</label><input class="input" type="date" id="payDate"></div></div>
    <div style="margin-top:9px"><label>Note</label><textarea id="payNote" rows="2"></textarea></div>
-   <div class="toolbar" style="justify-content:flex-end;margin-top:10px"><button class="btn" onclick="closePaymentModal()">Cancel</button><button class="btn primary" onclick="savePayment()">Save payment</button></div>
+   <div class="toolbar modal-footer" style="justify-content:flex-end;margin-top:10px"><button type="button" class="btn" onclick="closePaymentModal()">Cancel</button><button type="button" class="btn primary" onclick="savePayment()">Save payment</button></div>
   </div>
  </div>
 </div>

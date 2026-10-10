@@ -462,7 +462,7 @@ input[type="checkbox"]{accent-color:var(--red)}
   </div>
 
   <section class="section active" id="sec-dashboard">
-    <div class="topline"><div><div class="eyebrow">Command centre</div><h2>Home Hub</h2></div><div class="small">Today first. Handovers in detail below.</div></div>
+    <div class="topline"><div><h2>Home Hub</h2></div></div>
     <div class="grid g3">
       <div class="card"><h2>Today</h2><div class="stat blue" id="dashTodayStatus">—</div><div class="small" id="dashTodaySub">—</div></div>
       <div class="card"><h2>Next 7 days</h2><div class="stat" id="dashNextHandovers">0</div><div class="small" id="dashNextHandoversSub">Nothing scheduled</div></div>
@@ -475,7 +475,7 @@ input[type="checkbox"]{accent-color:var(--red)}
   </section>
 
   <section class="section" id="sec-work">
-    <div class="topline"><div><div class="eyebrow">Customer work</div><h2>Work To Do</h2></div><button class="btn primary" onclick="openTaskModal()">+ Task</button></div>
+    <div class="topline"><div><h2>Work To Do</h2></div><button class="btn primary" onclick="openTaskModal()">+ Task</button></div>
     <div class="grid g3">
       <div class="card work-col"><h3>Overdue</h3><div id="workOverdue"></div></div>
       <div class="card work-col"><h3>Today</h3><div id="workToday"></div></div>
@@ -485,7 +485,7 @@ input[type="checkbox"]{accent-color:var(--red)}
   </section>
 
   <section class="section" id="sec-calendar">
-    <div class="topline"><div><div class="eyebrow">Schedule</div><h2>Calendar</h2></div><button class="btn primary" onclick="openCalendarModal()">+ Calendar item</button></div>
+    <div class="topline"><div><h2>Calendar</h2></div><button class="btn primary" onclick="openCalendarModal()">+ Calendar item</button></div>
     <div class="card">
       <div class="calendar-toolbar">
         <div class="calendar-nav"><button class="btn sm" onclick="calendarPrev()">←</button><button class="btn sm" onclick="calendarToday()">Today</button><button class="btn sm" onclick="calendarNext()">→</button><span class="calendar-range" id="calendarRangeLabel">—</span></div>
@@ -496,7 +496,7 @@ input[type="checkbox"]{accent-color:var(--red)}
   </section>
 
   <section class="section" id="sec-deals">
-    <div class="topline"><div><div class="eyebrow">Personal deal diary</div><h2>Deals</h2></div><button class="btn primary" onclick="openDealModal()">+ Deal</button></div>
+    <div class="topline"><div><h2>Deals</h2></div><button class="btn primary" onclick="openDealModal()">+ Deal</button></div>
     <div class="card">
       <div class="toolbar" style="margin-bottom:10px">
         <input class="input" id="dealSearch" placeholder="Search customer / vehicle / stock" oninput="renderDeals()">
@@ -509,7 +509,7 @@ input[type="checkbox"]{accent-color:var(--red)}
   </section>
 
   <section class="section" id="sec-commission">
-    <div class="topline"><div><div class="eyebrow">Money</div><h2>Commission</h2></div><div class="toolbar"><select id="commMonth" onchange="renderCommission()"></select></div></div>
+    <div class="topline"><div><h2>Commission</h2></div><div class="toolbar"><select id="commMonth" onchange="renderCommission()"></select></div></div>
     <div class="grid g4">
       <div class="card"><h2>Earned in selected month</h2><div class="stat green" id="commEarned">—</div></div>
       <div class="card"><h2>Expected on selected payslip</h2><div class="stat blue" id="commExpected">—</div></div>
@@ -522,12 +522,12 @@ input[type="checkbox"]{accent-color:var(--red)}
   </section>
 
   <section class="section" id="sec-performance">
-    <div class="topline"><div><div class="eyebrow">Production</div><h2>Performance</h2></div></div>
+    <div class="topline"><div><h2>Performance</h2></div></div>
     <div class="grid g4">
       <div class="card"><h2>Annual deliveries</h2><div class="stat blue" id="perfAnnualUnits">0 / 160</div><div class="progress"><div class="fill blue" id="perfAnnualBar" style="width:0%"></div></div></div>
-      <div class="card"><h2>Reference annual pace</h2><div class="stat" id="perfPace">—</div><div class="small">160-unit annual target ÷ 12. This is a reference pace, not a fixed monthly target.</div></div>
+      <div class="card"><h2>Reference annual pace</h2><div class="stat" id="perfPace">—</div></div>
       <div class="card"><h2>Potential annual bonus</h2><div class="stat yellow" id="perfBonus">£0</div></div>
-      <div class="card"><h2>Average commission / delivery</h2><div class="stat green" id="perfAvgComm">—</div><div class="small">Based on recorded eligible commission</div></div>
+      <div class="card"><h2>Average commission / delivery</h2><div class="stat green" id="perfAvgComm">—</div></div>
     </div>
     <div class="card" style="margin-top:12px"><h2>July → June</h2><div class="tablewrap"><table class="table"><thead><tr><th>Month</th><th>Unit target</th><th>Delivered</th><th>New</th><th>Used</th><th>Motab</th><th>Commission earned</th><th>Month status</th></tr></thead><tbody id="performanceBody"></tbody></table></div></div>
     <div class="card" style="margin-top:12px"><h2>Quality / commission risk</h2><div id="perfRisk"></div></div>
@@ -551,7 +551,7 @@ input[type="checkbox"]{accent-color:var(--red)}
         <button class="btn primary" style="margin-top:10px" onclick="saveSettings()">Save</button>
       </div>
       <div class="card"><h2>Work pattern</h2>
-        <div class="note" style="margin-bottom:10px">Your rota repeats Week A → Week B → Week A → Week B until you change it.</div>
+
         <div class="formgrid">
           <div><label>Week beginning</label><input class="input" type="date" id="setScheduleAnchor"></div>
           <div><label>That week is</label><select id="setScheduleType"><option value="A">Week A</option><option value="B">Week B</option></select></div>
@@ -572,7 +572,7 @@ input[type="checkbox"]{accent-color:var(--red)}
     </div>
     <div class="card" style="margin-top:12px"><h2>Data</h2><div class="toolbar"><button class="btn" onclick="exportJSON()">Export JSON</button><button class="btn" onclick="exportCSV()">Export CSV</button><button class="btn" onclick="document.getElementById('importFile').click()">Import JSON</button><button class="btn danger" onclick="clearAll()">Delete all</button></div></div>
     <div class="card" style="margin-top:12px"><h2>Cloud sync</h2>
-      <div class="note" style="margin-bottom:10px">Your sales diary is stored in your private My Sales HQ cloud account. This device keeps a local cache so you can still work offline.</div>
+
       <div class="formgrid">
         <div><label>Cloud account email</label><input class="input" type="email" id="cloudEmail" placeholder="you@example.com"></div>
         <div><label>Account status</label><div class="input" id="cloudAccount">Not signed in</div></div>
@@ -594,7 +594,7 @@ input[type="checkbox"]{accent-color:var(--red)}
       </div>
     </div>
     <div class="card" id="cloudHistoryCard" style="display:none;margin-top:12px">
-      <div class="topline" style="margin-bottom:8px"><div><h2 style="margin-bottom:0">Cloud history</h2><div class="small">Last 30 saved states. A previous state is preserved automatically before every cloud update.</div></div><button class="btn sm" onclick="renderCloudHistory()">Refresh</button></div>
+      <div class="topline" style="margin-bottom:8px"><div><h2 style="margin-bottom:0">Cloud history</h2></div><button class="btn sm" onclick="renderCloudHistory()">Refresh</button></div>
       <div id="cloudHistoryList"></div>
     </div>
   </section>
@@ -602,7 +602,7 @@ input[type="checkbox"]{accent-color:var(--red)}
 
 <div class="modal" id="dealModal">
  <div class="modalbox">
-  <div class="modalhead"><div><div class="eyebrow">Deal record</div><h3 id="dealModalTitle">Add deal</h3></div><button type="button" class="close" aria-label="Close deal" title="Close" onclick="closeDealModal()">×</button></div>
+  <div class="modalhead"><div><h3 id="dealModalTitle">Add deal</h3></div><button type="button" class="close" aria-label="Close deal" title="Close" onclick="closeDealModal()">×</button></div>
   <div class="modalbody">
    <form id="dealForm" onsubmit="saveDeal(event)">
     <input type="hidden" id="editId">
@@ -706,7 +706,7 @@ input[type="checkbox"]{accent-color:var(--red)}
  </div>
 </div>
 
-<script src="app.js?v=20261010-2"></script>
+<script src="app.js?v=20261010-3"></script>
 <script src="playbook.js?v=20261008-4"></script>
 <script>
 if('serviceWorker' in navigator){

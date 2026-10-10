@@ -883,15 +883,13 @@ function authCookieParts(){
   return map;
 }
 function clearAuthCookies(){
-  const map=authCookieParts();
-  Object.keys(map).forEach(name=>{
+  Object.keys(authCookieParts()).forEach(name=>{
     document.cookie=name+'=; Path=/; Max-Age=0; SameSite=Lax; Secure';
   });
 }
-function writeAuthCookie(key,value){
-  if(!key||!key.includes('-auth-token'))return;
+function writeAuthCookieValue(value){
   clearAuthCookies();
-  if(value==null)return;
+  if(!value)return;
   const encoded=encodeURIComponent(String(value));
   const count=Math.max(1,Math.ceil(encoded.length/AUTH_COOKIE_CHUNK_SIZE));
   document.cookie=AUTH_COOKIE_PREFIX+'count='+count+'; Path=/; Max-Age=31536000; SameSite=Lax; Secure';
@@ -900,7 +898,7 @@ function writeAuthCookie(key,value){
     document.cookie=AUTH_COOKIE_PREFIX+i+'='+chunk+'; Path=/; Max-Age=31536000; SameSite=Lax; Secure';
   }
 }
-function readAuthCookie(){
+function readAuthCookieValue(){
   const map=authCookieParts();
   const count=Number(map[AUTH_COOKIE_PREFIX+'count']||0);
   if(!count)return null;
@@ -912,27 +910,9 @@ function readAuthCookie(){
   }
   try{return decodeURIComponent(encoded);}catch(e){return null;}
 }
-const authStorage = {
-  getItem(key){
-    try{
-      const local=localStorage.getItem(key);
-      if(local!==null){
-        if(key.includes('-auth-token'))writeAuthCookie(key,local);
-        return local;
-      }
-    }catch(e){}
-    return key.includes('-auth-token')?readAuthCookie():null;
-  },
-  setItem(key,value){
-    localStorage.setItem(key,value);
-    if(key.includes('-auth-token'))writeAuthCookie(key,value);
-  },
-  removeItem(key){
-    localStorage.removeItem(key);
-    if(key.includes('-auth-token'))clearAuthCookies();
-  }
-};
-
+function rememberAuthSession(session){
+  try{writeAuthCookieValue(session?JSON.stringify(session):null);}catch(e){console.warn('My Sales HQ auth cookie error',e);}
+}
 function currentCloudData(){
   return {deals:deals.map(x=>cloneData(x)),tasks:tasks.map(x=>cloneData(x)),calendarEvents:calendarEvents.map(x=>cloneData(x)),settings:cloneData(settings)};
 }
@@ -1174,25 +1154,49 @@ async function renderCloudHistory(){
 async function initSupabase(){
   try{
     sb=supabase.createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY,{
-      auth:{storage:authStorage,persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
+      auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}
     });
-    const {data,error}=await sb.auth.getSession();
+
+    let {data,error}=await sb.auth.getSession();
     if(error)throw error;
-    sbSession=data.session||null;
-    if(sbSession){
-      try{writeAuthCookie('sb-'+SUPABASE_URL.split('//')[1].split('.')[0]+'-auth-token',localStorage.getItem('sb-'+SUPABASE_URL.split('//')[1].split('.')[0]+'-auth-token'));}catch(e){}
+
+    if(!data.session){
+      const cookieValue=readAuthCookieValue();
+      if(cookieValue){
+        try{
+          const saved=JSON.parse(cookieValue);
+          if(saved?.access_token&&saved?.refresh_token){
+            const bridged=await sb.auth.setSession({
+              access_token:saved.access_token,
+              refresh_token:saved.refresh_token
+            });
+            if(bridged.error)throw bridged.error;
+            data=bridged.data;
+          }
+        }catch(e){
+          console.warn('My Sales HQ auth bootstrap failed',e);
+        }
+      }
     }
+
+    sbSession=data.session||null;
+    rememberAuthSession(sbSession);
     setCloudUi();
     if(sbSession){await syncCloudState();startCloudWatcher();}
     else setSyncStatus('offline','Sign in to sync');
+
     sb.auth.onAuthStateChange((event,session)=>{
       sbSession=session||null;
+      rememberAuthSession(sbSession);
       setCloudUi();
       if(event==='SIGNED_IN'&&sbSession){
         startCloudWatcher();
         setTimeout(()=>syncCloudState(),0);
+      }else if(event==='TOKEN_REFRESHED'&&sbSession){
+        clearCloudConflict();
       }else if(event==='SIGNED_OUT'){
         stopCloudWatcher();
+        rememberAuthSession(null);
         setSyncStatus('offline','Sign in to sync');
       }
     });

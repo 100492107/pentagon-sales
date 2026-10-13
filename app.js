@@ -28,6 +28,9 @@ const ORDER_COMMISSION_START = '2026-07-01';
 const SUPABASE_URL = 'https://fwrvpjxxcdmeuukjwhjp.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_VRXsdVEqBBCQ1YUHYrHf8Q_szqZWGsx';
 const CLOUD_TABLE = 'deals';
+const CLOUD_OWNER_ID = '7990835d-47bf-433f-905c-4c0b79226de6';
+const CLOUD_ALLOWED_EMAILS = ['joeaharris1999@gmail.com','joe.harris@pentagon-group.co.uk'];
+function cloudOwnerId(){return CLOUD_OWNER_ID;}
 
 let deals = JSON.parse(localStorage.getItem('ps_deals') || '[]');
 let tasks = JSON.parse(localStorage.getItem('ps_tasks') || '[]');
@@ -1127,7 +1130,7 @@ function setCloudUi(){
   renderCloudConflict();
 }
 async function fetchCloudRow(){
-  const {data,error}=await sb.from(CLOUD_TABLE).select('data,updated_at,version').eq('id',sbSession.user.id).maybeSingle();
+  const {data,error}=await sb.from(CLOUD_TABLE).select('data,updated_at,version').eq('id',cloudOwnerId()).maybeSingle();
   if(error)throw error;
   return data||null;
 }
@@ -1135,7 +1138,7 @@ async function fetchCloudHistory(){
   if(!sb||!sbSession)return [];
   const {data,error}=await sb.from(CLOUD_HISTORY_TABLE)
     .select('id,source_version,created_at')
-    .eq('user_id',sbSession.user.id)
+    .eq('user_id',cloudOwnerId())
     .order('created_at',{ascending:false})
     .limit(30);
   if(error)throw error;
@@ -1281,7 +1284,7 @@ async function pushToCloud(immediate=false){
     let row=await fetchCloudRow();
     if(!row){
       const {data,error}=await sb.from(CLOUD_TABLE).insert({
-        id:sbSession.user.id,
+        id:cloudOwnerId(),
         data:currentCloudData()
       }).select('data,updated_at,version').single();
       if(!error&&data){
@@ -1303,7 +1306,7 @@ async function pushToCloud(immediate=false){
     const submitted=currentCloudData();
     const {data,error}=await sb.from(CLOUD_TABLE)
       .update({data:submitted})
-      .eq('id',sbSession.user.id)
+      .eq('id',cloudOwnerId())
       .eq('version',expectedVersion)
       .select('data,updated_at,version')
       .maybeSingle();
@@ -1427,7 +1430,7 @@ async function restoreCloudVersion(historyId){
     const {data:history,error}=await sb.from(CLOUD_HISTORY_TABLE)
       .select('data,source_version,created_at')
       .eq('id',historyId)
-      .eq('user_id',sbSession.user.id)
+      .eq('user_id',cloudOwnerId())
       .maybeSingle();
     if(error)throw error;
     if(!history){alert('That history version is no longer available.');return;}

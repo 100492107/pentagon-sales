@@ -28,9 +28,95 @@ const ORDER_COMMISSION_START = '2026-07-01';
 const SUPABASE_URL = 'https://fwrvpjxxcdmeuukjwhjp.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_VRXsdVEqBBCQ1YUHYrHf8Q_szqZWGsx';
 const CLOUD_TABLE = 'deals';
-const CLOUD_OWNER_ID = '7990835d-47bf-433f-905c-4c0b79226de6';
-const CLOUD_ALLOWED_EMAILS = ['joeaharris1999@gmail.com','joe.harris@pentagon-group.co.uk'];
-function cloudOwnerId(){return CLOUD_OWNER_ID;}
+const SHARED_SYNC_FUNCTION = 'my-sales-hq-sync';
+let syncKey = localStorage.getItem('ps_sync_key') || '';
+function hasSyncKey(){return !!syncKey;}
+function saveSyncKey(value){
+  syncKey=(value||'').trim();
+  if(syncKey)localStorage.setItem('ps_sync_key',syncKey);
+  else localStorage.removeItem('ps_sync_key');
+  setCloudUi();
+}
+function makeSyncKey(){
+  const bytes=crypto.getRandomValues(new Uint8Array(18));
+  return Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('').toUpperCase();
+}
+async function sharedSyncRequest(action,payload={}){
+  if(!syncKey)throw new Error('No sync key connected.');
+  const res=await fetch(SUPABASE_URL+'/functions/v1/'+SHARED_SYNC_FUNCTION,{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-my-sales-hq-sync-key':syncKey
+    },
+    body:JSON.stringify({action,...payload})
+  });
+  let body={};
+  try{body=await res.json();}catch(e){}
+  if(!res.ok){
+    const err=new Error(body.error||('Sync request failed ('+res.status+').'));
+    err.status=res.status;
+    err.payload=body;
+    throw err;
+  }
+  return body;
+}
+async function createSharedSyncKey(){
+  if(!sb||!sbSession){
+    const msg=document.getElementById('cloudMsg');
+    if(msg)msg.textContent='Sign in once on the main device to create the private sync key.';
+    return;
+  }
+  const key=makeSyncKey();
+  try{
+    const token=sbSession.access_token;
+    const res=await fetch(SUPABASE_URL+'/functions/v1/'+SHARED_SYNC_FUNCTION,{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':'Bearer '+token
+      },
+      body:JSON.stringify({action:'create_key',code:key,data:currentCloudData(),replaceData:true})
+    });
+    const body=await res.json().catch(()=>({}));
+    if(!res.ok)throw new Error(body.error||('Could not create sync key ('+res.status+').'));
+    saveSyncKey(key);
+    setCloudBaseData(body.data,body.version,body.updated_at);
+    cloudDirty=false;
+    applyCloudData(body.data);
+    persist(false);
+    refreshAll();
+    const input=document.getElementById('syncKey');if(input)input.value=key;
+    const msg=document.getElementById('cloudMsg');if(msg)msg.textContent='Private sync key created. Use the same key on every device.';
+  }catch(e){
+    const msg=document.getElementById('cloudMsg');if(msg)msg.textContent='Could not create sync key: '+(e.message||e);
+  }
+}
+async function connectSharedSyncKey(){
+  const input=document.getElementById('syncKey');
+  const key=(input?.value||'').trim();
+  if(!key){const msg=document.getElementById('cloudMsg');if(msg)msg.textContent='Enter your sync key.';return;}
+  const oldKey=syncKey; syncKey=key;
+  try{
+    const body=await sharedSyncRequest('get');
+    saveSyncKey(key);
+    applyCloudData(body.data);
+    persist(false);
+    setCloudBaseData(body.data,body.version,body.updated_at);
+    cloudDirty=false;
+    clearCloudConflict();
+    refreshAll();
+    const msg=document.getElementById('cloudMsg');if(msg)msg.textContent='Private sync connected.';
+  }catch(e){
+    syncKey=oldKey;
+    setCloudUi();
+    const msg=document.getElementById('cloudMsg');if(msg)msg.textContent='Could not connect: '+(e.message||e);
+  }
+}
+async function fetchSharedCloudRow(){
+  const body=await sharedSyncRequest('get');
+  return {data:body.data,version:body.version,updated_at:body.updated_at};
+}
 
 let deals = JSON.parse(localStorage.getItem('ps_deals') || '[]');
 let tasks = JSON.parse(localStorage.getItem('ps_tasks') || '[]');
@@ -816,6 +902,7 @@ function loadSettingsUI(){
   document.getElementById('setTargetMonth').value=currentMonthKey();
   document.getElementById('setMonthTarget').value=monthTarget(currentMonthKey())||'';
   document.getElementById('setNewVehicleTarget').value=newVehicleTarget(currentMonthKey())||'';
+  const syncInput=document.getElementById('syncKey'); if(syncInput && document.activeElement!==syncInput)syncInput.value=syncKey;
   const anchor=document.getElementById('setScheduleAnchor'),type=document.getElementById('setScheduleType');
   if(anchor)anchor.value=settings.scheduleAnchor||mondayKeyFromDate();
   if(type)type.value=settings.scheduleType||'A';
@@ -1112,25 +1199,30 @@ function renderCloudConflict(){
   msg.textContent='Another device changed My Sales HQ since this device last synced ('+when+'). No data was silently overwritten. Non-conflicting changes are merged automatically; overlapping changes need a choice below.';
 }
 function setCloudUi(){
-  const email=document.getElementById('cloudEmail');
+  const keyInput=document.getElementById('syncKey');
+  if(keyInput && document.activeElement!==keyInput)keyInput.value=syncKey;
   const account=document.getElementById('cloudAccount');
   const loginBtn=document.getElementById('btnCloudLogin');
   const pullBtn=document.getElementById('btnPull');
   const pushBtn=document.getElementById('btnPush');
   const signoutBtn=document.getElementById('btnCloudSignout');
+  const connected=hasSyncKey();
   const authenticated=!!sbSession;
-  if(email && authenticated) email.value=sbSession.user.email||'';
-  if(account)account.textContent=authenticated ? ('Signed in as '+(sbSession.user.email||'your account')) : 'Not signed in';
-  if(loginBtn)loginBtn.style.display=authenticated?'none':'inline-flex';
-  if(signoutBtn)signoutBtn.style.display=authenticated?'inline-flex':'none';
-  if(pullBtn)pullBtn.disabled=!authenticated;
-  if(pushBtn)pushBtn.disabled=!authenticated;
+  if(account)account.textContent=connected?'Private sync connected':(authenticated?'Account signed in':'Not connected');
+  if(loginBtn)loginBtn.style.display='none';
+  if(signoutBtn)signoutBtn.style.display='none';
+  if(pullBtn)pullBtn.disabled=!connected;
+  if(pushBtn)pushBtn.disabled=!connected;
+  const createBtn=document.getElementById('btnCreateSyncKey');
+  const connectBtn=document.getElementById('btnConnectSyncKey');
+  if(createBtn)createBtn.disabled=!authenticated;
+  if(connectBtn)connectBtn.disabled=!keyInput?.value.trim();
   const historyCard=document.getElementById('cloudHistoryCard');
   if(historyCard)historyCard.style.display=authenticated?'block':'none';
   renderCloudConflict();
 }
 async function fetchCloudRow(){
-  const {data,error}=await sb.from(CLOUD_TABLE).select('data,updated_at,version').eq('id',cloudOwnerId()).maybeSingle();
+  const {data,error}=await sb.from(CLOUD_TABLE).select('data,updated_at,version').eq('id',sbSession.user.id).maybeSingle();
   if(error)throw error;
   return data||null;
 }
@@ -1138,7 +1230,7 @@ async function fetchCloudHistory(){
   if(!sb||!sbSession)return [];
   const {data,error}=await sb.from(CLOUD_HISTORY_TABLE)
     .select('id,source_version,created_at')
-    .eq('user_id',cloudOwnerId())
+    .eq('user_id',sbSession.user.id)
     .order('created_at',{ascending:false})
     .limit(30);
   if(error)throw error;
@@ -1229,7 +1321,7 @@ function stopCloudWatcher(){
 }
 function startCloudWatcher(){
   stopCloudWatcher();
-  if(!sbSession)return;
+  if(!sbSession&&!hasSyncKey())return;
   cloudRefreshTimer=setInterval(()=>{if(navigator.onLine&&document.visibilityState==='visible')syncCloudState();},30000);
 }
 async function signOutSupabase(){
@@ -1264,7 +1356,137 @@ async function resolveCloudConflict(remoteRow){
   await renderCloudHistory();
   return true;
 }
+async function pushSharedToCloud(immediate=false){
+  if(!hasSyncKey()||!navigator.onLine)return false;
+  if(!immediate){
+    clearTimeout(cloudSaveTimer);
+    cloudSaveTimer=setTimeout(()=>pushSharedToCloud(true),350);
+    return true;
+  }
+  if(cloudSyncBusy){
+    clearTimeout(cloudSaveTimer);
+    cloudSaveTimer=setTimeout(()=>pushSharedToCloud(true),500);
+    return true;
+  }
+  cloudSyncBusy=true;
+  const genAtStart=localGeneration;
+  setSyncStatus('syncing','Saving to cloud…');
+  try{
+    let row=await fetchSharedCloudRow();
+    let expectedVersion=getCloudVersion();
+    if(expectedVersion===null)expectedVersion=row.version;
+    if(row.version!==expectedVersion){
+      const ok=await resolveCloudConflict(row);
+      return ok;
+    }
+    const body=await sharedSyncRequest('save',{expectedVersion,data:currentCloudData()});
+    setCloudBaseData(body.data,body.version,body.updated_at);
+    if(localGeneration===genAtStart)cloudDirty=false;
+    clearCloudConflict();
+    setSyncSynced(body.updated_at,'Cloud synced');
+    const msg=document.getElementById('cloudMsg');if(msg)msg.textContent='Automatically synced '+deals.length+' deals / '+tasks.length+' tasks.';
+    if(localGeneration!==genAtStart)cloudSave();
+    return true;
+  }catch(e){
+    if(e.status===409&&e.payload?.current){
+      const current=e.payload.current;
+      const ok=await resolveCloudConflict(current);
+      if(ok)return true;
+    }
+    setSyncStatus('error','Sync error');
+    const msg=document.getElementById('cloudMsg');if(msg)msg.textContent='Cloud save failed: '+(e.message||e);
+    return false;
+  }finally{
+    cloudSyncBusy=false;
+    if(cloudDirty)setTimeout(()=>pushSharedToCloud(true),250);
+  }
+}
+function setSyncSynced(stamp,message='Cloud synced'){
+  const t=cloudTimeLabel(stamp||new Date().toISOString());
+  setSyncStatus('online',t?message+' · '+t:message);
+}
+async function syncSharedCloudState(){
+  if(!hasSyncKey()||!navigator.onLine)return;
+  if(cloudSyncBusy)return;
+  cloudSyncBusy=true;
+  setSyncStatus('syncing','Syncing cloud…');
+  try{
+    const row=await fetchSharedCloudRow();
+    const remote=normalizeCloudData(row.data||{});
+    const base=getCloudBaseData();
+    const storedVersion=getCloudVersion();
+    if(!base||storedVersion===null){
+      if(hasLocalData()){
+        const merged=mergeFirstRun({deals,tasks,settings},remote);
+        applyCloudData(merged);
+        persist(false);
+        setCloudBaseData(remote,row.version,row.updated_at);
+        cloudDirty=!deepEqual(merged,remote);
+        refreshAll();
+        cloudSyncBusy=false;
+        if(cloudDirty)await pushSharedToCloud(true);
+        else setSyncSynced(row.updated_at,'Cloud synced');
+        return;
+      }
+      applyCloudData(remote);
+      persist(false);
+      setCloudBaseData(remote,row.version,row.updated_at);
+      cloudDirty=false;
+      refreshAll();
+      setSyncSynced(row.updated_at,'Cloud synced');
+      return;
+    }
+    const local=currentCloudData();
+    if(storedVersion===row.version){
+      if(!deepEqual(local,base)){
+        cloudDirty=true;
+        cloudSyncBusy=false;
+        await pushSharedToCloud(true);
+        return;
+      }
+      applyCloudData(remote);
+      persist(false);
+      setCloudBaseData(remote,row.version,row.updated_at);
+      cloudDirty=false;
+      refreshAll();
+      setSyncSynced(row.updated_at,'Cloud synced');
+      return;
+    }
+    if(!deepEqual(local,base)){
+      const merged=mergeCloudData(base,local,remote);
+      if(merged.conflicts.length){
+        saveCloudConflict(row,base,local);
+        setSyncStatus('error','Conflict — review');
+        const msg=document.getElementById('cloudMsg');if(msg)msg.textContent='Cloud changed elsewhere. Nothing has been overwritten.';
+        return;
+      }
+      applyCloudData(merged.data);
+      persist(false);
+      setCloudBaseData(remote,row.version,row.updated_at);
+      cloudDirty=!deepEqual(merged.data,remote);
+      refreshAll();
+      cloudSyncBusy=false;
+      if(cloudDirty)await pushSharedToCloud(true);
+      else setSyncSynced(row.updated_at,'Cloud synced');
+      return;
+    }
+    applyCloudData(remote);
+    persist(false);
+    setCloudBaseData(remote,row.version,row.updated_at);
+    cloudDirty=false;
+    clearCloudConflict();
+    refreshAll();
+    setSyncSynced(row.updated_at,'Cloud synced');
+  }catch(e){
+    setSyncStatus('error','Sync error');
+    const msg=document.getElementById('cloudMsg');if(msg)msg.textContent='Cloud sync failed: '+(e.message||e);
+  }finally{
+    cloudSyncBusy=false;
+    if(cloudDirty)setTimeout(()=>pushSharedToCloud(true),250);
+  }
+}
 async function pushToCloud(immediate=false){
+  if(hasSyncKey())return pushSharedToCloud(immediate);
   if(!sb||!sbSession)return false;
   if(!immediate){
     clearTimeout(cloudSaveTimer);
@@ -1284,7 +1506,7 @@ async function pushToCloud(immediate=false){
     let row=await fetchCloudRow();
     if(!row){
       const {data,error}=await sb.from(CLOUD_TABLE).insert({
-        id:cloudOwnerId(),
+        id:sbSession.user.id,
         data:currentCloudData()
       }).select('data,updated_at,version').single();
       if(!error&&data){
@@ -1306,7 +1528,7 @@ async function pushToCloud(immediate=false){
     const submitted=currentCloudData();
     const {data,error}=await sb.from(CLOUD_TABLE)
       .update({data:submitted})
-      .eq('id',cloudOwnerId())
+      .eq('id',sbSession.user.id)
       .eq('version',expectedVersion)
       .select('data,updated_at,version')
       .maybeSingle();
@@ -1334,7 +1556,9 @@ async function pushToCloud(immediate=false){
   }
 }
 async function syncCloudState(){
-  if(!sb||!sbSession||!navigator.onLine)return;
+  if(!navigator.onLine)return;
+  if(hasSyncKey())return syncSharedCloudState();
+  if(!sb||!sbSession)return;
   if(cloudSyncBusy)return;
   cloudSyncBusy=true;
   setSyncStatus('syncing','Syncing cloud…');
@@ -1430,7 +1654,7 @@ async function restoreCloudVersion(historyId){
     const {data:history,error}=await sb.from(CLOUD_HISTORY_TABLE)
       .select('data,source_version,created_at')
       .eq('id',historyId)
-      .eq('user_id',cloudOwnerId())
+      .eq('user_id',sbSession.user.id)
       .maybeSingle();
     if(error)throw error;
     if(!history){alert('That history version is no longer available.');return;}
@@ -1449,7 +1673,7 @@ async function restoreCloudVersion(historyId){
 }
 function pullFromCloud(){ return syncCloudState(); }
 document.addEventListener('visibilitychange',()=>{
-  if(document.visibilityState==='visible'&&sbSession)syncCloudState();
+  if(document.visibilityState==='visible'&&(sbSession||hasSyncKey()))syncCloudState();
 });
 document.addEventListener('keydown',e=>{
   if(e.key!=='Escape')return;
@@ -1473,8 +1697,8 @@ function cloudSave(){
 }
 function connectSupabase(){ return signInCloud(); }
 function disconnectSupabase(){ return signOutSupabase(); }
-window.addEventListener('online',()=>{ if(sbSession){ setSyncStatus('online','Back online · syncing…'); syncCloudState(); } });
-window.addEventListener('offline',()=>{ if(sbSession)setSyncStatus('offline','Offline · local cache active'); });
+window.addEventListener('online',()=>{ if(sbSession||hasSyncKey()){ setSyncStatus('online','Back online · syncing…'); syncCloudState(); } });
+window.addEventListener('offline',()=>{ if(sbSession||hasSyncKey())setSyncStatus('offline','Offline · local cache active'); });
 
 function refreshAll(){
   renderSummary();renderDashboard();renderCalendar();renderWork();renderDeals();renderCommission();renderPerformance();loadSettingsUI();

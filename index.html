@@ -573,7 +573,7 @@ input[type="checkbox"]{accent-color:var(--red)}
     <div class="card" style="margin-top:12px"><h2>Data</h2><div class="toolbar"><button class="btn" onclick="exportJSON()">Export JSON</button><button class="btn" onclick="exportCSV()">Export CSV</button><button class="btn" onclick="document.getElementById('importFile').click()">Import JSON</button><button class="btn danger" onclick="clearAll()">Delete all</button></div></div>
     <div class="card" style="margin-top:12px"><h2>Private sync</h2>
       <div class="formgrid">
-        <div><label>Sync key</label><input class="input" id="syncKey" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Paste your sync key"></div>
+        <div><label>Sync key</label><input class="input" id="syncKey" type="text" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="Paste your sync key" oninput="setCloudUi()"></div>
         <div><label>Status</label><div class="input" id="cloudAccount">Not connected</div></div>
       </div>
       <div class="toolbar" style="margin-top:10px">
@@ -705,7 +705,7 @@ input[type="checkbox"]{accent-color:var(--red)}
  </div>
 </div>
 
-<script src="app.js?v=20261013-2"></script>
+<script src="app.js?v=20261013-3"></script>
 <script src="playbook.js?v=20261008-4"></script>
 <script>
 if('serviceWorker' in navigator){

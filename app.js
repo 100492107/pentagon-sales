@@ -1277,8 +1277,12 @@ async function initSupabase(){
     sbSession=data.session||null;
     rememberAuthSession(sbSession);
     setCloudUi();
-    if(sbSession){await syncCloudState();startCloudWatcher();}
-    else setSyncStatus('offline','Sign in to sync');
+    if(hasSyncKey()){
+      try{await syncCloudState();startCloudWatcher();}
+      catch(e){setSyncStatus('error','Sync error');}
+    }else if(sbSession){
+      await syncCloudState();startCloudWatcher();
+    }else setSyncStatus('offline','Set up private sync');
 
     sb.auth.onAuthStateChange((event,session)=>{
       sbSession=session||null;

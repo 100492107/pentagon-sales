@@ -676,8 +676,10 @@ function buildFiChecks(selected=[]){
 }
 function updateDealFormMode(){
   const type=document.getElementById('fType')?.value||'new-retail';
+  const selected=[...document.querySelectorAll('input[name="fi"]:checked')].map(x=>x.value);
   document.querySelectorAll('[data-used-only]').forEach(el=>el.style.display=type==='used'?'':'none');
   document.querySelectorAll('[data-new-only]').forEach(el=>el.style.display=type!=='used'?'':'none');
+  buildFiChecks(selected);
   const more=document.getElementById('dealMore');
   if(more&&type==='used')more.open=false;
 }

@@ -85,7 +85,8 @@ async function createSharedSyncKey(){
     cloudDirty=false;
     applyCloudData(body.data);
     persist(false);
-    refreshAll();
+    document.getElementById('fType')?.addEventListener('change',updateDealFormMode);
+refreshAll();
     const input=document.getElementById('syncKey');if(input)input.value=key;
     const msg=document.getElementById('cloudMsg');if(msg)msg.textContent='Private sync key created. Use the same key on every device.';
   }catch(e){
@@ -195,6 +196,8 @@ function migrateDeal(d){
   x.expectedDeliveryDate=x.expectedDeliveryDate||'';
   x.handoverDate=x.handoverDate||'';
   x.handoverTime=x.handoverTime||'';
+  if(!x.deliveryDate&&x.handoverDate)x.deliveryDate=x.handoverDate;
+  if(x.handoverDate&&x.stage!=='lost')x.stage='delivered';
   x.handover=x.handover&&typeof x.handover==='object'?x.handover:{
     prep:'not-set',service:'not-set',mot:'not-set',cosmetic:'not-set',valet:'not-set',documents:'not-set'
   };
@@ -203,6 +206,7 @@ function migrateDeal(d){
   x.csi=(x.csi!==undefined && x.csi!==null && x.csi!=='') ? Number(x.csi) : null;
   x.px=x.px||'';
   x.nextAction=x.nextAction||'';
+  x.notes=x.notes||'';
   x.fi=Array.isArray(x.fi)?x.fi:[];
   x.journal=Array.isArray(x.journal)?x.journal:(x.notes?[{id:uid('note'),date:x.leadDate||todayKey(),text:x.notes}]:[]);
   x.adjustments=Array.isArray(x.adjustments)?x.adjustments:[];
@@ -221,7 +225,7 @@ function toggleTheme(){ setTheme(document.body.getAttribute('data-theme')==='dar
 function annualEligibleDeals(){
   // A delivery is a delivered unit for performance purposes. Do not remove a
   // historical delivery just because a later note/stage is changed.
-  return deals.filter(d=>d.deliveryDate && d.deliveryDate>=ANNUAL_START && d.deliveryDate<=ANNUAL_END);
+  return deals.filter(d=>{const deliveryDate=d.deliveryDate||d.handoverDate;return deliveryDate && deliveryDate>=ANNUAL_START && deliveryDate<=ANNUAL_END;});
 }
 function monthDeals(key){ return deals.filter(d=>monthKey(d.deliveryDate)===key || monthKey(d.orderDate)===key); }
 function monthTarget(key){
@@ -296,11 +300,12 @@ function eventDefs(d){
   }
 
   // All new and used delivery commission is a separate delivery event.
-  if(d.deliveryDate){
+  const deliveryDate=d.deliveryDate||d.handoverDate;
+  if(deliveryDate){
     out.push({
       id:'delivery',kind:'delivery',
       label:d.type==='used'?'Used delivery commission':'Vehicle delivery commission',
-      amount:v.delivery,eligibleDate:d.deliveryDate,payMonth:monthAfter(monthKey(d.deliveryDate)),
+      amount:v.delivery,eligibleDate:deliveryDate,payMonth:monthAfter(monthKey(deliveryDate)),
       requires:'Delivery + compliant deal file'
     });
   }
@@ -356,7 +361,7 @@ function monthStatsRaw(key){
     const el=eligibleEvent(d,e);
     if(e.eligibleDate&&monthKey(e.eligibleDate)===key)rawEarned+=el;
   }));
-  const yearDeals=annualEligibleDeals().filter(d=>monthKey(d.deliveryDate)===key);
+  const yearDeals=annualEligibleDeals().filter(d=>monthKey(d.deliveryDate||d.handoverDate)===key);
   return {rawEarned,units:yearDeals.length,newUnits:yearDeals.filter(d=>d.type!=='used').length};
 }
 function previousKey(key){
@@ -369,7 +374,7 @@ function monthStats(key){
   let rawEarned=0,expected=0,paid=0,units=0,newUnits=0,used=0,motab=0;
   const expectedEvents=[];
   annualEligibleDeals().forEach(d=>{
-    if(monthKey(d.deliveryDate)===key){
+    if(monthKey(d.deliveryDate||d.handoverDate)===key){
       units++; if(d.type==='used')used++;else if(d.type==='new-motab')motab++;else newUnits++;
     }
   });
@@ -665,15 +670,23 @@ function renderDeals(){
   }).join('');
 }
 function buildFiChecks(selected=[]){
-  const type=document.getElementById('fType').value,products=SCHEME.fi[type]||{};
-  document.getElementById('fiChecks').innerHTML=Object.keys(products).map(k=>`<label class="check"><input type="checkbox" name="fi" value="${esc(k)}" ${selected.includes(k)?'checked':''}> ${esc(FI_LABELS[k])} +${money(products[k])}</label>`).join('');
+  const type=document.getElementById('fType')?.value,products=SCHEME.fi[type]||{};
+  const wrap=document.getElementById('fiChecks'); if(!wrap)return;
+  wrap.innerHTML=Object.keys(products).map(k=>'<label class="check"><input type="checkbox" name="fi" value="'+esc(k)+'" '+(selected.includes(k)?'checked':'')+'> '+esc(FI_LABELS[k])+' +'+money(products[k])+'</label>').join('');
+}
+function updateDealFormMode(){
+  const type=document.getElementById('fType')?.value||'new-retail';
+  document.querySelectorAll('[data-used-only]').forEach(el=>el.style.display=type==='used'?'':'none');
+  document.querySelectorAll('[data-new-only]').forEach(el=>el.style.display=type!=='used'?'':'none');
+  const more=document.getElementById('dealMore');
+  if(more&&type==='used')more.open=false;
 }
 function renderDealEventsInModal(){
-  if(!openDealId){document.getElementById('dealEvents').innerHTML='<div class="note">Save the deal first, then commission events and payment tracking appear here.</div>';return;}
+  if(!openDealId){document.getElementById('dealEvents').innerHTML='<div class="note">Save the deal first to see commission.</div>';return;}
   const d=deals.find(x=>x.id===openDealId);if(!d)return;
   const events=eventDefs(d);
   const wrap=document.getElementById('dealEvents');
-  if(!events.length){wrap.innerHTML='<div class="empty">No commission event can be calculated from the information recorded yet.</div>';return;}
+  if(!events.length){wrap.innerHTML='<div class="empty">No commission event can be calculated yet.</div>';return;}
   wrap.innerHTML=events.map(e=>{
     const eligible=eligibleEvent(d,e),p=paymentFor(d,e.id),remaining=Math.max(0,eligible-eventPaid(d,e));
     let status='Potential';
@@ -690,13 +703,11 @@ function renderDealEventsInModal(){
       (p.note?'<div class="small" style="margin-top:4px">'+esc(p.note)+'</div>':'')+
       '</div>';
   }).join('');
-  wrap.querySelectorAll('[data-pay-deal]').forEach(btn=>{
-    btn.addEventListener('click',()=>openPaymentModal(btn.dataset.payDeal,btn.dataset.payEvent));
-  });
+  wrap.querySelectorAll('[data-pay-deal]').forEach(btn=>btn.addEventListener('click',()=>openPaymentModal(btn.dataset.payDeal,btn.dataset.payEvent)));
 }
 function renderDealDiary(){
   if(!openDealId)return;const d=deals.find(x=>x.id===openDealId);if(!d)return;
-  document.getElementById('dealDiary').innerHTML=d.journal.length?[...d.journal].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(e=>`<div class="entry"><div class="d">${dateLabel(e.date)}</div><div class="t">${esc(e.text)}</div></div>`).join(''):'<div class="empty">No diary entries yet.</div>';
+  document.getElementById('dealDiary').innerHTML=d.journal.length?[...d.journal].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).map(e=>'<div class="entry"><div class="d">'+dateLabel(e.date)+'</div><div class="t">'+esc(e.text)+'</div></div>').join(''):'<div class="empty">No diary entries yet.</div>';
 }
 function renderDealTasks(){
   if(!openDealId)return;const rows=tasks.filter(t=>t.dealId===openDealId).sort((a,b)=>(a.done-b.done)||(a.due||'9999').localeCompare(b.due||'9999'));
@@ -712,29 +723,97 @@ function openDealModal(id=''){
   document.getElementById('editId').value=id;
   document.getElementById('quickTaskDue').value=todayKey();
   document.getElementById('adjDate').value=todayKey();
+  document.getElementById('dealMore').open=false;
   if(!id){
-    ['fCustomer','fPhone','fEmail','fVehicle','fStock','fPx','fNextAction','fDiary'].forEach(x=>document.getElementById(x).value='');
-    document.getElementById('fLeadDate').value=todayKey();document.getElementById('fOrderDate').value='';document.getElementById('fExpectedDelivery').value='';document.getElementById('fHandoverDate').value='';document.getElementById('fHandoverTime').value='';document.getElementById('fDeliveryDate').value='';document.getElementById('fFinancePayout').value='';document.getElementById('fCSI').value='';document.getElementById('fStage').value='lead';document.getElementById('fType').value='new-retail';buildFiChecks([]);renderDealHandoverChecklist();document.getElementById('dealEvents').innerHTML='<div class="note">Save the deal first, then commission events and payment tracking appear here.</div>';document.getElementById('dealDiary').innerHTML='<div class="empty">Save the deal and start the diary.</div>';document.getElementById('dealTasks').innerHTML='<div class="empty">Save the deal before adding linked work.</div>';document.getElementById('dealAdjustments').innerHTML='<div class="note">Save the deal first.</div>';return;
+    document.getElementById('fCustomer').value='';
+    document.getElementById('fVehicle').value='';
+    document.getElementById('fStock').value='';
+    document.getElementById('fType').value='new-retail';
+    document.getElementById('fOrderDate').value='';
+    document.getElementById('fHandoverDate').value='';
+    document.getElementById('fHandoverTime').value='';
+    document.getElementById('fNotes').value='';
+    document.getElementById('fFinancePayout').value='';document.getElementById('fFinancePayoutInput').value='';
+    document.getElementById('fCSI').value='';
+    document.getElementById('fPx').value='';
+    document.getElementById('fNextAction').value='';
+    document.getElementById('fStage').value='lead';
+    document.getElementById('fLeadDate').value=todayKey();
+    document.getElementById('fExpectedDelivery').value='';
+    document.getElementById('fDeliveryDate').value='';
+    buildFiChecks([]);
+    renderDealHandoverChecklist();
+    document.getElementById('dealEvents').innerHTML='<div class="note">Save the deal first to see commission.</div>';
+    document.getElementById('dealDiary').innerHTML='<div class="empty">Save the deal and start the diary.</div>';
+    document.getElementById('dealTasks').innerHTML='<div class="empty">Save the deal before adding linked work.</div>';
+    document.getElementById('dealAdjustments').innerHTML='<div class="note">Save the deal first.</div>';
+    updateDealFormMode();
+    return;
   }
   const d=deals.find(x=>x.id===id);if(!d)return;
-  document.getElementById('fCustomer').value=d.customer;document.getElementById('fPhone').value=d.phone||'';document.getElementById('fEmail').value=d.email||'';document.getElementById('fVehicle').value=d.vehicle||'';document.getElementById('fStock').value=d.stock||'';
-  document.getElementById('fType').value=d.type;document.getElementById('fStage').value=d.stage;document.getElementById('fLeadDate').value=d.leadDate||'';document.getElementById('fOrderDate').value=d.orderDate||'';document.getElementById('fExpectedDelivery').value=d.expectedDeliveryDate||'';document.getElementById('fHandoverDate').value=d.handoverDate||'';document.getElementById('fHandoverTime').value=d.handoverTime||'';document.getElementById('fDeliveryDate').value=d.deliveryDate||'';document.getElementById('fFinancePayout').value=d.financePayoutDate||'';document.getElementById('fCSI').value=d.csi??'';document.getElementById('fPx').value=d.px||'';document.getElementById('fNextAction').value=d.nextAction||'';
-  buildFiChecks(d.fi||[]);renderDealEventsInModal();renderDealDiary();renderDealTasks();renderDealAdjustments();renderDealHandoverChecklist();
+  document.getElementById('fCustomer').value=d.customer||'';
+  document.getElementById('fVehicle').value=d.vehicle||'';
+  document.getElementById('fStock').value=d.stock||'';
+  document.getElementById('fType').value=d.type||'new-retail';
+  document.getElementById('fOrderDate').value=d.orderDate||'';
+  document.getElementById('fHandoverDate').value=d.handoverDate||d.deliveryDate||'';
+  document.getElementById('fHandoverTime').value=d.handoverTime||'';
+  document.getElementById('fNotes').value=d.notes||'';
+  document.getElementById('fFinancePayout').value=d.financePayoutDate||'';document.getElementById('fFinancePayoutInput').value=d.financePayoutDate||'';
+  document.getElementById('fCSI').value=d.csi??'';
+  document.getElementById('fPx').value=d.px||'';
+  document.getElementById('fNextAction').value=d.nextAction||'';
+  document.getElementById('fStage').value=d.stage||'lead';
+  document.getElementById('fLeadDate').value=d.leadDate||todayKey();
+  document.getElementById('fExpectedDelivery').value=d.expectedDeliveryDate||'';
+  document.getElementById('fDeliveryDate').value=d.deliveryDate||d.handoverDate||'';
+  buildFiChecks(d.fi||[]);
+  renderDealEventsInModal();renderDealDiary();renderDealTasks();renderDealAdjustments();renderDealHandoverChecklist();
+  updateDealFormMode();
 }
 function closeDealModal(){document.getElementById('dealModal').classList.remove('show');openDealId=null}
 function saveDeal(e){
   e.preventDefault();
   const id=document.getElementById('editId').value||uid('deal');
-  const fi=[...document.querySelectorAll('input[name="fi"]:checked')].map(x=>x.value);
   const old=deals.find(d=>d.id===id);
+  const type=document.getElementById('fType').value;
+  const fi=[...document.querySelectorAll('input[name="fi"]:checked')].map(x=>x.value);
+  const handoverDate=document.getElementById('fHandoverDate').value;
+  const oldStage=old?.stage||'lead';
+  const stage=oldStage==='lost'&&!handoverDate?'lost':handoverDate?'delivered':(type!=='used'&&document.getElementById('fOrderDate').value?'ordered':'lead');
+  const orderDate=type==='used'?(old?.orderDate||''):document.getElementById('fOrderDate').value;
+  const deliveryDate=handoverDate||old?.deliveryDate||'';
   const d={
-    id,customer:document.getElementById('fCustomer').value.trim(),phone:document.getElementById('fPhone').value.trim(),email:document.getElementById('fEmail').value.trim(),
-    vehicle:document.getElementById('fVehicle').value.trim(),stock:document.getElementById('fStock').value.trim(),type:document.getElementById('fType').value,stage:document.getElementById('fStage').value,
-    leadDate:document.getElementById('fLeadDate').value,orderDate:document.getElementById('fOrderDate').value,expectedDeliveryDate:document.getElementById('fExpectedDelivery').value,deliveryDate:document.getElementById('fDeliveryDate').value,financePayoutDate:document.getElementById('fFinancePayout').value,
-    fi,csi:document.getElementById('fCSI').value===''?null:Number(document.getElementById('fCSI').value),px:document.getElementById('fPx').value.trim(),nextAction:document.getElementById('fNextAction').value.trim(),
-    journal:old?.journal||[],adjustments:old?.adjustments||[],payments:old?.payments||{}
+    id,
+    customer:document.getElementById('fCustomer').value.trim(),
+    phone:old?.phone||'',
+    email:old?.email||'',
+    vehicle:document.getElementById('fVehicle').value.trim(),
+    stock:document.getElementById('fStock').value.trim(),
+    type,
+    stage,
+    leadDate:old?.leadDate||todayKey(),
+    orderDate,
+    expectedDeliveryDate:old?.expectedDeliveryDate||'',
+    deliveryDate,
+    handoverDate,
+    handoverTime:document.getElementById('fHandoverTime').value,
+    financePayoutDate:document.getElementById('fFinancePayout').value,
+    fi,
+    csi:document.getElementById('fCSI').value===''?null:Number(document.getElementById('fCSI').value),
+    px:document.getElementById('fPx').value.trim(),
+    nextAction:document.getElementById('fNextAction').value.trim(),
+    notes:document.getElementById('fNotes').value.trim(),
+    handover:old?.handover||{prep:'not-set',service:'not-set',mot:'not-set',cosmetic:'not-set',valet:'not-set',documents:'not-set'},
+    journal:old?.journal||[],
+    adjustments:old?.adjustments||[],
+    payments:old?.payments||{}
   };
-  if(!old && d.leadDate)d.journal.push({id:uid('note'),date:d.leadDate,text:'Deal created.'});
+  if(!old)d.journal.push({id:uid('note'),date:d.leadDate,text:'Deal created.'});
+  const note=d.notes;
+  if(old && note && note!==old.notes){
+    d.journal.push({id:uid('note'),date:todayKey(),text:note});
+  }
   const i=deals.findIndex(x=>x.id===id);if(i>=0)deals[i]=d;else deals.push(d);
   persist();openDealId=id;refreshAll();openDealModal(id);cloudSave();
 }

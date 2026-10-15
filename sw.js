@@ -1,4 +1,4 @@
-const CACHE='my-sales-hq-v20';
+const CACHE='my-sales-hq-v21';
 const APP_SHELL=['/','/index.html','/app.js?v=20261013-3','/playbook.js?v=20261008-4','/manifest.json','/assets/joedoes-icon.jpg'];
 
 self.addEventListener('install',event=>{

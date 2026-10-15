@@ -196,8 +196,19 @@ function migrateDeal(d){
   x.expectedDeliveryDate=x.expectedDeliveryDate||'';
   x.handoverDate=x.handoverDate||'';
   x.handoverTime=x.handoverTime||'';
-  if(!x.deliveryDate&&x.handoverDate)x.deliveryDate=x.handoverDate;
-  if(x.handoverDate&&x.stage!=='lost')x.stage='delivered';
+  // A future handover is NOT a delivered sale. Only a handover today or in the past
+  // becomes the actual delivery date and earns the delivery commission.
+  const today=todayKey();
+  if(x.handoverDate){
+    if(x.handoverDate<=today){
+      if(!x.deliveryDate)x.deliveryDate=x.handoverDate;
+      if(x.stage!=='lost')x.stage='delivered';
+    }else{
+      // Undo the earlier fallback if a future handover was mistakenly treated as delivered.
+      if(x.deliveryDate===x.handoverDate)x.deliveryDate='';
+      if(x.stage!=='lost')x.stage='awaiting-delivery';
+    }
+  }
   x.handover=x.handover&&typeof x.handover==='object'?x.handover:{
     prep:'not-set',service:'not-set',mot:'not-set',cosmetic:'not-set',valet:'not-set',documents:'not-set'
   };
@@ -225,7 +236,7 @@ function toggleTheme(){ setTheme(document.body.getAttribute('data-theme')==='dar
 function annualEligibleDeals(){
   // A delivery is a delivered unit for performance purposes. Do not remove a
   // historical delivery just because a later note/stage is changed.
-  return deals.filter(d=>{const deliveryDate=d.deliveryDate||d.handoverDate;return deliveryDate && deliveryDate>=ANNUAL_START && deliveryDate<=ANNUAL_END;});
+  return deals.filter(d=>{const deliveryDate=d.deliveryDate;return deliveryDate && deliveryDate<=todayKey() && deliveryDate>=ANNUAL_START && deliveryDate<=ANNUAL_END;});
 }
 function monthDeals(key){ return deals.filter(d=>monthKey(d.deliveryDate)===key || monthKey(d.orderDate)===key); }
 function monthTarget(key){
@@ -300,7 +311,7 @@ function eventDefs(d){
   }
 
   // All new and used delivery commission is a separate delivery event.
-  const deliveryDate=d.deliveryDate||d.handoverDate;
+  const deliveryDate=d.deliveryDate&&d.deliveryDate<=todayKey()?d.deliveryDate:'';
   if(deliveryDate){
     out.push({
       id:'delivery',kind:'delivery',
@@ -361,7 +372,7 @@ function monthStatsRaw(key){
     const el=eligibleEvent(d,e);
     if(e.eligibleDate&&monthKey(e.eligibleDate)===key)rawEarned+=el;
   }));
-  const yearDeals=annualEligibleDeals().filter(d=>monthKey(d.deliveryDate||d.handoverDate)===key);
+  const yearDeals=annualEligibleDeals().filter(d=>monthKey(d.deliveryDate)===key);
   return {rawEarned,units:yearDeals.length,newUnits:yearDeals.filter(d=>d.type!=='used').length};
 }
 function previousKey(key){
@@ -374,7 +385,7 @@ function monthStats(key){
   let rawEarned=0,expected=0,paid=0,units=0,newUnits=0,used=0,motab=0;
   const expectedEvents=[];
   annualEligibleDeals().forEach(d=>{
-    if(monthKey(d.deliveryDate||d.handoverDate)===key){
+    if(monthKey(d.deliveryDate)===key){
       units++; if(d.type==='used')used++;else if(d.type==='new-motab')motab++;else newUnits++;
     }
   });
@@ -782,9 +793,10 @@ function saveDeal(e){
   const fi=[...document.querySelectorAll('input[name="fi"]:checked')].map(x=>x.value);
   const handoverDate=document.getElementById('fHandoverDate').value;
   const oldStage=old?.stage||'lead';
-  const stage=oldStage==='lost'&&!handoverDate?'lost':handoverDate?'delivered':(type!=='used'&&document.getElementById('fOrderDate').value?'ordered':'lead');
+  const today=todayKey();
+  const stage=oldStage==='lost'&&!handoverDate?'lost':handoverDate?(handoverDate<=today?'delivered':'awaiting-delivery'):(type!=='used'&&document.getElementById('fOrderDate').value?'ordered':'lead');
   const orderDate=type==='used'?(old?.orderDate||''):document.getElementById('fOrderDate').value;
-  const deliveryDate=handoverDate||old?.deliveryDate||'';
+  const deliveryDate=handoverDate&&handoverDate<=today?handoverDate:(old?.deliveryDate&&old.deliveryDate<=today?old.deliveryDate:'');
   const d={
     id,
     customer:document.getElementById('fCustomer').value.trim(),
